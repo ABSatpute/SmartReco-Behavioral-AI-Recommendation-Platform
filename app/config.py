@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     secret_key: str = "dev-only-change-me"
     database_url: str = "postgresql://smartreco:smartreco@localhost:5432/smartreco"
+    app_base_url: str = "http://localhost:8000"
     session_cookie: str = "smartreco_session"
     session_ttl_days: int = 30
 

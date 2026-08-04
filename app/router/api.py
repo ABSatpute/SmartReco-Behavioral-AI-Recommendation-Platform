@@ -3,11 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.deps import require_user
+from app.deps import require_admin, require_user
 from app.models import Session as DBSession
 from app.models import User, UserEvent
 from app.schemas import EventBatchIn, RecommendationOut
 from app.services import auth as auth_service
+from app.services import digest as digest_service
 from app.services import recommendations as rec_service
 
 router = APIRouter(prefix="/api")
@@ -82,3 +83,13 @@ def api_latest_recommendation(
     if recommendation is None:
         return {"status": "none", "message": "No valid recommendation yet. Browse a little more."}
     return RecommendationOut.model_validate(recommendation)
+
+
+@router.post("/digest/test")
+def api_digest_test(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Manual digest trigger for admins (dev/debug)."""
+    return digest_service.run_digest(db)

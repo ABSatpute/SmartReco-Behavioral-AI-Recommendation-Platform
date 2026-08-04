@@ -234,6 +234,13 @@ def check_vectors() -> None:
         db.close()
 
 
+def run_digest_now() -> None:
+    from app.services.digest import run_digest
+
+    result = run_digest()
+    print(result)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -246,6 +253,7 @@ def main() -> None:
     sub.add_parser("seed_demo")
     sub.add_parser("resync_vectors")
     sub.add_parser("check_vectors")
+    sub.add_parser("digest")
 
     amazon = sub.add_parser("load_amazon")
     amazon.add_argument("--csv", required=True, help="Path to the Amazon UK 2023 CSV")
@@ -264,6 +272,8 @@ def main() -> None:
         resync_vectors()
     elif args.command == "check_vectors":
         check_vectors()
+    elif args.command == "digest":
+        run_digest_now()
 
 
 if __name__ == "__main__":

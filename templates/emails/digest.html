@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<body style="margin:0;padding:0;background:#f6f7fb;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e3e6ee;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#eef1fb,#ffffff);padding:24px 28px;">
+              <p style="margin:0;color:#3b5bdb;font-weight:700;font-size:14px;">SmartReco</p>
+              <h1 style="margin:8px 0 0;font-size:22px;color:#1a1d27;">{{ summary }}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px;color:#1a1d27;font-size:15px;line-height:1.6;">
+              <p style="margin:0 0 16px;">{{ narrative }}</p>
+
+              <h2 style="font-size:15px;color:#1a1d27;">Top picks for you</h2>
+              {% for pick in picks %}
+                {% if pick.product %}
+                <div style="display:flex;gap:12px;align-items:flex-start;border:1px solid #e3e6ee;border-radius:10px;padding:12px;margin-bottom:10px;">
+                  {% if pick.product.image_url %}
+                    <img src="{{ pick.product.image_url }}" alt="" width="64" height="64" style="object-fit:contain;border-radius:6px;flex-shrink:0;">
+                  {% endif %}
+                  <div>
+                    <p style="margin:0;font-weight:600;font-size:14px;">#{{ pick.item.rank }} {{ pick.product.title }}</p>
+                    <p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${{ pick.product.price }}</p>
+                    {% if pick.item.rationale %}
+                      <p style="margin:6px 0 0;color:#3b5bdb;font-size:13px;">Why: {{ pick.item.rationale }}</p>
+                    {% endif %}
+                  </div>
+                </div>
+                {% endif %}
+              {% endfor %}
+
+              <p style="margin:20px 0 0;">
+                <a href="{{ rec_url }}" style="background:#3b5bdb;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;display:inline-block;">See all my recommendations</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 28px;color:#6b7280;font-size:12px;border-top:1px solid #e3e6ee;">
+              <p style="margin:0;">SmartReco — behavioral AI recommendations, tailored to your journey.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -448,3 +448,4 @@ SmartReco/
 - **M3 (committed)** tracker.js + ingest; Postgres-only enforcement; tests on `smartreco_test`.
 - **Amazon dataset (committed)** full schema (asin/stars/reviews/best-seller/etc.), `load_amazon` CLI, image rendering, loader tests.
 - **M4 agent engine (committed)** `app/agent/*` LangGraph workflow (analyze/decide/retrieve/evaluate/refine/generate/store), trigger policy + cooldown + cache in `services/recommendations.py`, grounding validation (hallucinated ids rejected → regenerate → fallback), `agent_runs` trace, endpoints + UI page + refresh.
+- **M6 scheduling + email (committed)** `app/scheduler.py` APScheduler daily job, `services/digest.py` (24h-active selection, cache reuse, HTML/plain email, SMTP + console fallback, per-day idempotency), `python -m app.cli digest`, admin `POST /api/digest/test`.
