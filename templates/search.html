@@ -16,13 +16,19 @@
 <div class="product-grid">
   {% for product in products %}
     <a class="product-card" href="/products/{{ product.slug }}" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
+      {% if product.image_url %}
+        <img class="product-img" src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy">
+      {% endif %}
       <h3 class="product-title">{{ product.title }}</h3>
       <span class="product-category">{{ product.category }}</span>
+      {% if product.stars is not none %}
+        <span class="product-rating">★ {{ product.stars }} ({{ product.reviews or 0 }})</span>
+      {% endif %}
       <p class="product-desc">{{ product.description[:120] }}{% if product.description|length > 120 %}…{% endif %}</p>
       <span class="product-price">${{ product.price }}</span>
     </a>
   {% else %}
-    {% if query %}<p>No courses match your search.</p>{% endif %}
+    {% if query %}<p>No products match your search.</p>{% endif %}
   {% endfor %}
 </div>
 {% endblock %}

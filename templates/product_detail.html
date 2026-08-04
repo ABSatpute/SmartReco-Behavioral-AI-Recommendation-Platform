@@ -8,17 +8,38 @@
   <p><a href="/">Back to catalog</a></p>
 {% else %}
 <div class="product-detail" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
-  <h1>{{ product.title }}</h1>
-  <span class="product-category">{{ product.category }}</span>
-  {% if product.level %}<span class="badge">{{ product.level }}</span>{% endif %}
-  <p class="product-price">${{ product.price }}</p>
-  {% if product.tags %}
-    <p class="tags">{% for tag in product.tags %}<span class="badge">{{ tag }}</span>{% endfor %}</p>
-  {% endif %}
-  <p>{{ product.description }}</p>
-
-  <button class="btn btn-primary" data-add-to-cart="{{ product.id }}">Add to cart</button>
-  <a href="/" class="btn">Back to catalog</a>
+  <div class="detail-layout">
+    {% if product.image_url %}
+      <div class="detail-img">
+        <img src="{{ product.image_url }}" alt="{{ product.title }}">
+      </div>
+    {% endif %}
+    <div class="detail-info">
+      <h1>{{ product.title }}</h1>
+      <span class="product-category">{{ product.category }}</span>
+      {% if product.is_best_seller %}<span class="badge badge-best">Best Seller</span>{% endif %}
+      <p class="product-price">${{ product.price }}</p>
+      {% if product.stars is not none %}
+        <p class="product-rating">★ {{ product.stars }} from {{ product.reviews or 0 }} review{{ 's' if product.reviews != 1 else '' }}</p>
+      {% endif %}
+      {% if product.bought_in_last_month is not none %}
+        <p class="product-muted">{{ product.bought_in_last_month }} bought in the last month</p>
+      {% endif %}
+      {% if product.tags %}
+        <p class="tags">{% for tag in product.tags %}<span class="badge">{{ tag }}</span>{% endfor %}</p>
+      {% endif %}
+      {% if product.description %}
+        <p>{{ product.description }}</p>
+      {% endif %}
+      <div class="detail-actions">
+        <button class="btn btn-primary" data-add-to-cart="{{ product.id }}">Add to cart</button>
+        {% if product.product_url %}
+          <a class="btn" href="{{ product.product_url }}" target="_blank" rel="noopener">View on Amazon</a>
+        {% endif %}
+        <a href="/" class="btn">Back to catalog</a>
+      </div>
+    </div>
+  </div>
 </div>
 {% endif %}
 {% endblock %}

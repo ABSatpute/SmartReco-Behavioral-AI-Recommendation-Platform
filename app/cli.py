@@ -3,10 +3,13 @@
 Commands:
   create_admin --email E --password P         create an admin user
   seed_demo                                   seed demo products + demo admin
+  load_amazon --csv PATH [--limit N] [--category S] [--embed]
+                                              ingest Amazon UK 2023 dataset CSV
   resync_vectors                              re-embed all active products to Pinecone
   check_vectors                               report vector store health
 """
 import argparse
+import csv
 import sys
 
 from app.database import Base, SessionLocal, engine
@@ -128,6 +131,97 @@ def resync_vectors() -> None:
         db.close()
 
 
+def _clean_price(value) -> float | None:
+    try:
+        price = float(value)
+    except (TypeError, ValueError):
+        return None
+    if price <= 0 or price > 20000:  # drop test listings / outliers
+        return None
+    return round(price, 2)
+
+
+def _clean_stars(value) -> float | None:
+    try:
+        stars = float(value)
+    except (TypeError, ValueError):
+        return None
+    return max(0.0, min(5.0, stars))
+
+
+def _clean_int(value) -> int | None:
+    try:
+        num = int(float(value))
+    except (TypeError, ValueError):
+        return None
+    return max(0, num)
+
+
+def _clean_bool(value) -> bool:
+    return str(value).strip().lower() in {"true", "1", "yes", "y"}
+
+
+def _derive_tags(category: str) -> list[str]:
+    words = set()
+    for token in category.replace("&", " ").replace(">", " ").split():
+        token = token.strip().strip(",").lower()
+        if token and len(token) > 2 and token not in {"and", "the", "for", "new"}:
+            words.add(token)
+    return sorted(words)
+
+
+def clean_amazon_row(raw: dict) -> dict | None:
+    title = (raw.get("title") or "").strip()
+    category = (raw.get("categoryName") or "").strip()
+    price = _clean_price(raw.get("price"))
+    if not title or not category or price is None:
+        return None
+    img_url = (raw.get("imgUrl") or "").strip()
+    return {
+        "asin": (raw.get("asin") or "").strip() or None,
+        "title": title[:255],
+        "category": category[:100],
+        "price": price,
+        "image_url": img_url if img_url.startswith("http") else None,
+        "product_url": (raw.get("productURL") or "").strip() or None,
+        "stars": _clean_stars(raw.get("stars")),
+        "reviews": _clean_int(raw.get("reviews")),
+        "is_best_seller": _clean_bool(raw.get("isBestSeller")),
+        "bought_in_last_month": _clean_int(raw.get("boughtInLastMonth")),
+        "tags": _derive_tags(category),
+        "description": "",
+    }
+
+
+def load_amazon(csv_path: str, limit: int | None = None, category: str | None = None) -> None:
+    rows: list[dict] = []
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for raw in reader:
+            cleaned = clean_amazon_row(raw)
+            if cleaned is None:
+                continue
+            if category and category.lower() not in cleaned["category"].lower():
+                continue
+            rows.append(cleaned)
+            if limit and len(rows) >= limit:
+                break
+
+    print(f"Valid rows to import: {len(rows)}")
+    if not rows:
+        return
+
+    db = SessionLocal()
+    try:
+        new_ids = product_service.bulk_create_products(db, rows)
+        print(f"Inserted {len(new_ids)} new products (skipped existing ASINs).")
+        if new_ids:
+            embedded = product_service.embed_product_batch(db, new_ids)
+            print(f"Embedded {embedded} products into the vector store.")
+    finally:
+        db.close()
+
+
 def check_vectors() -> None:
     from app.vector_store import get_vector_store
 
@@ -153,12 +247,19 @@ def main() -> None:
     sub.add_parser("resync_vectors")
     sub.add_parser("check_vectors")
 
+    amazon = sub.add_parser("load_amazon")
+    amazon.add_argument("--csv", required=True, help="Path to the Amazon UK 2023 CSV")
+    amazon.add_argument("--limit", type=int, default=5000, help="Max products to import")
+    amazon.add_argument("--category", default=None, help="Only import rows containing this category")
+
     args = parser.parse_args()
 
     if args.command == "create_admin":
         create_admin(args.email, args.password, args.full_name)
     elif args.command == "seed_demo":
         seed_demo()
+    elif args.command == "load_amazon":
+        load_amazon(args.csv, limit=args.limit, category=args.category)
     elif args.command == "resync_vectors":
         resync_vectors()
     elif args.command == "check_vectors":

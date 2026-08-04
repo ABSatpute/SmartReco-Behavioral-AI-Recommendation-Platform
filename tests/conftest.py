@@ -13,10 +13,15 @@ from app.database import Base, engine
 from app.main import app
 
 
-@pytest.fixture()
-def client():
+@pytest.fixture(autouse=True)
+def _tables():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture()
+def client():
     with TestClient(app) as c:
         yield c
-    Base.metadata.drop_all(bind=engine)

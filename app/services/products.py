@@ -42,6 +42,23 @@ def _product_text(product: Product) -> str:
     return " ".join(p for p in parts if p).lower()[:8000]
 
 
+def _vector_metadata(product: Product) -> dict:
+    return {
+        "title": product.title,
+        "category": product.category,
+        "tags": product.tags or [],
+        "price": float(product.price),
+        "level": product.level or "",
+        "is_best_seller": bool(product.is_best_seller),
+        "stars": float(product.stars) if product.stars is not None else 0.0,
+        "reviews": int(product.reviews) if product.reviews is not None else 0,
+        "bought_in_last_month": int(product.bought_in_last_month)
+        if product.bought_in_last_month is not None
+        else 0,
+        "is_active": product.is_active,
+    }
+
+
 def _embed_products(db: Session, products: list[Product]) -> dict[int, list[float]]:
     """Embed many products in one Mesh call (batched)."""
     texts = [_product_text(p) for p in products]
@@ -58,22 +75,7 @@ def sync_product_vector(db: Session, product: Product) -> None:
         return
     try:
         vector = mesh.embed_one(_product_text(product))
-        store.upsert(
-            [
-                (
-                    vector_id,
-                    vector,
-                    {
-                        "title": product.title,
-                        "category": product.category,
-                        "tags": product.tags or [],
-                        "price": float(product.price),
-                        "level": product.level or "",
-                        "is_active": product.is_active,
-                    },
-                )
-            ]
-        )
+        store.upsert([(vector_id, vector, _vector_metadata(product))])
     except mesh.MeshError as exc:
         logger.error("Vector sync failed for product %s: %s", product.id, exc)
 
@@ -88,6 +90,12 @@ def create_product(db: Session, data: dict) -> Product:
         price=float(data.get("price", 0)),
         level=data.get("level") or None,
         image_url=data.get("image_url") or None,
+        product_url=data.get("product_url") or None,
+        asin=data.get("asin") or None,
+        stars=data.get("stars"),
+        reviews=data.get("reviews"),
+        is_best_seller=bool(data.get("is_best_seller", False)),
+        bought_in_last_month=data.get("bought_in_last_month"),
     )
     db.add(product)
     db.commit()
@@ -178,19 +186,79 @@ def resync_all(db: Session) -> int:
         if vector is None:
             logger.error("No embedding for product %s", p.id)
             continue
-        payload.append(
-            (
-                vector_id,
-                vector,
-                {
-                    "title": p.title,
-                    "category": p.category,
-                    "tags": p.tags or [],
-                    "price": float(p.price),
-                    "level": p.level or "",
-                    "is_active": p.is_active,
-                },
+        payload.append((vector_id, vector, _vector_metadata(p)))
+    store.upsert(payload)
+    return len(payload)
+
+
+def bulk_create_products(db: Session, rows: list[dict]) -> list[int]:
+    """Insert many products without per-item embedding (returns new ids).
+    Vector sync happens later via embed_product_batch to keep Mesh calls cheap."""
+    existing_asins = {
+        a for (a,) in db.query(Product.asin).filter(Product.asin.isnot(None)).all()
+    }
+    existing_slugs = {s for (s,) in db.query(Product.slug).all()}
+
+    products: list[Product] = []
+    for row in rows:
+        asin = row.get("asin")
+        if asin and asin in existing_asins:
+            continue
+        if asin:
+            existing_asins.add(asin)
+
+        slug = slugify(row["title"])
+        if slug in existing_slugs:
+            base, n = slug, 2
+            while f"{base}-{n}" in existing_slugs:
+                n += 1
+            slug = f"{base}-{n}"
+        existing_slugs.add(slug)
+
+        products.append(
+            Product(
+                title=row["title"],
+                slug=slug,
+                description=row.get("description", ""),
+                category=row.get("category", ""),
+                tags=row.get("tags", []),
+                price=float(row.get("price", 0)),
+                level=row.get("level") or None,
+                image_url=row.get("image_url") or None,
+                product_url=row.get("product_url") or None,
+                asin=asin,
+                stars=row.get("stars"),
+                reviews=row.get("reviews"),
+                is_best_seller=bool(row.get("is_best_seller", False)),
+                bought_in_last_month=row.get("bought_in_last_month"),
             )
         )
+        db.add(products[-1])
+        if len(products) % 500 == 0:
+            db.flush()
+
+    db.commit()
+    return [p.id for p in products]
+
+
+def embed_product_batch(db: Session, product_ids: list[int]) -> int:
+    """Embed a set of products in batched Mesh calls and upsert to the store."""
+    store = get_vector_store()
+    if not product_ids:
+        return 0
+    products = (
+        db.query(Product).filter(Product.id.in_(product_ids), Product.is_active.is_(True)).all()
+    )
+    if not products:
+        return 0
+    payload = []
+    for i in range(0, len(products), 50):
+        chunk = products[i : i + 50]
+        vectors_by_id = _embed_products(db, chunk)
+        for p in chunk:
+            vector = vectors_by_id.get(p.id)
+            if vector is None:
+                continue
+            payload.append((f"product:{p.id}", vector, _vector_metadata(p)))
     store.upsert(payload)
     return len(payload)

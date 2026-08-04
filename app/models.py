@@ -55,6 +55,7 @@ class Product(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asin: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     description: Mapped[str] = mapped_column(Text, default="")
@@ -63,6 +64,11 @@ class Product(Base):
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     level: Mapped[str | None] = mapped_column(String(32), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    product_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    stars: Mapped[float | None] = mapped_column(Float, nullable=True)
+    reviews: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_best_seller: Mapped[bool] = mapped_column(Boolean, default=False)
+    bought_in_last_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
     updated_at: Mapped[datetime] = mapped_column(

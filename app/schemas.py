@@ -26,6 +26,7 @@ class UserOut(BaseModel):
 
 class ProductOut(BaseModel):
     id: int
+    asin: str | None
     title: str
     slug: str
     description: str
@@ -34,6 +35,11 @@ class ProductOut(BaseModel):
     price: float
     level: str | None
     image_url: str | None
+    product_url: str | None
+    stars: float | None
+    reviews: int | None
+    is_best_seller: bool
+    bought_in_last_month: int | None
     is_active: bool
     created_at: datetime
     updated_at: datetime

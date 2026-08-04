@@ -76,7 +76,37 @@ body {
   transition: box-shadow 0.15s ease;
 }
 .product-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+.product-img {
+  width: 100%;
+  height: 160px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
 .product-title { margin: 0 0 0.25rem; font-size: 1.05rem; }
 .product-category { color: var(--brand); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.product-rating { color: #b45309; font-size: 0.85rem; }
+.product-muted { color: var(--muted); font-size: 0.85rem; }
 .product-desc { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0; }
 .product-price { font-weight: 600; }
+
+.badge {
+  display: inline-block;
+  background: #eef1fb;
+  color: var(--brand);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  margin-right: 0.25rem;
+}
+.badge-best { background: #fef3c7; color: #92400e; }
+
+.detail-layout { display: flex; gap: 2rem; }
+.detail-img img { max-width: 360px; width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+.detail-actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+.table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+.table th, .table td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.muted { color: var(--muted); }
+.danger { color: #c0392b; }
