@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}SmartReco — Courses that fit your journey{% endblock %}
+
+{% block content %}
+<h1>Explore courses</h1>
+<p>Browse the catalog. SmartReco learns from what you look at and recommends courses tailored to you.</p>
+
+{% if products %}
+  <div class="product-grid">
+    {% for product in products %}
+      <a class="product-card" href="/products/{{ product.slug }}" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
+        <h3 class="product-title">{{ product.title }}</h3>
+        <span class="product-category">{{ product.category }}</span>
+        <p class="product-desc">{{ product.description[:120] }}{% if product.description|length > 120 %}…{% endif %}</p>
+        <span class="product-price">${{ product.price }}</span>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>No courses yet. An admin can add courses to the catalog.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SmartReco{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <a class="navbar-brand" href="/">SmartReco</a>
+    <div class="navbar-links">
+      {% if current_user %}
+        <span class="navbar-user">Hi, {{ current_user.full_name or current_user.email }}</span>
+        {% if current_user.role == 'admin' %}
+          <a href="/admin/products">Admin</a>
+        {% endif %}
+        <a href="/recommendations">My Recommendations</a>
+        <form method="post" action="/auth/logout" class="inline-form">
+          <button type="submit" class="btn btn-link">Log out</button>
+        </form>
+      {% else %}
+        <a href="/auth/login">Log in</a>
+        <a href="/auth/register">Sign up</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>SmartReco — behavioral AI recommendations</p>
+  </footer>
+
+  <script src="{{ url_for('static', path='/js/tracker.js') }}" data-app="{{ request.base_url }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

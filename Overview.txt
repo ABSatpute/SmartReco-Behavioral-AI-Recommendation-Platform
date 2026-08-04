@@ -1,0 +1,34 @@
+About
+Welcome to the SmartReco Build Challenge 2026.
+
+Build a web platform that watches how each user behaves and intelligently recommends the right products to them — with AI-generated, persuasive messaging that actually motivates action.
+https://youtu.be/zMkT7kS2J8M?si=LZUBM7lux57ii8uL
+
+Mesh API is our official sponsor, and using it is mandatory — every LLM/AI call in your project must go through Mesh API.
+
+This is not a simple "related products" widget. You are building an agentic recommendation system: a backend agent that continuously observes a user's activity, understands their interests, retrieves the most relevant products from a knowledge base, and generates personalized, convincing recommendations that update as the user's behavior changes.
+
+A user lands on your platform and starts exploring — browsing products, searching, clicking around. Every meaningful action is tracked. Behind the scenes, an AI agent watches this activity build up, reasons over that behavior, retrieves the most relevant products, and generates a personalized recommendation — not a bare list, but a compelling message tailored to that user's journey. These recommendations are stored, shown on the site, and refresh as the user's behavior evolves.
+
+Terms & Conditions
+Submissions are first screened by an automated AI system that evaluates your code, and the top submissions are then reviewed by human judges.
+Using Mesh API is mandatory. A submission that does not route its LLM/AI calls through Mesh API will not be considered a valid submission.
+The decisions of the judges are final.
+
+Problem statement
+
+Read it and start building
+
+Rules
+One submission per participant / Team.
+A public GitHub repository is mandatory — your repo is your submission.
+All code must be in the repository. The automated evaluation reads your repo directly.
+Backend must be Python (Flask or FastAPI). You may use any vector database (Chroma, Pinecone, Qdrant, FAISS, or similar).
+Mesh API is mandatory. Every LLM/AI call in your project must go through Mesh API. A submission that does not use Mesh API will not be considered a valid submission.
+No hardcoded secrets or credentials committed to the repository — keep them in a local, gitignored .env.
+Faked or stubbed features (hardcoded recommendations, a vector database that is never queried, an LLM client that is never called) will score poorly.
+A demo video and deployed URL are optional, and are reviewed only for finalists.
+Eligibility
+Participants must be 18 years or older, or have guardian consent if younger.
+A public GitHub account is required to submit.
+Organizer employees and their immediate family are not eligible for prizes.

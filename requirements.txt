@@ -1,0 +1,34 @@
+# ---- Core ----
+fastapi>=0.115
+uvicorn[standard]>=0.30
+jinja2>=3.1
+python-multipart>=0.0.9
+pydantic>=2.7
+pydantic-settings>=2.3
+email-validator>=2.1
+
+# ---- Database ----
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+alembic>=1.13
+
+# ---- Auth ----
+bcrypt>=4.1
+
+# ---- LLM / AI (all calls via Mesh API) ----
+openai>=1.40
+
+# ---- Vector DB ----
+pinecone-client>=5.0
+
+# ---- Agent (bonus) ----
+langgraph>=0.2
+
+# ---- Scheduling (bonus) ----
+APScheduler>=3.10
+
+# ---- HTTP client ----
+httpx>=0.27
+
+# ---- Dev / test ----
+pytest>=8.0
