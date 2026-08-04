@@ -6,6 +6,7 @@ from app.database import get_db
 from app.deps import current_user
 from app.models import Product, User
 from app.services import products as product_service
+from app.services import recommendations as rec_service
 from app.templating import templates
 
 router = APIRouter()
@@ -75,8 +76,27 @@ def recommendations_page(
 ):
     if user is None:
         return RedirectResponse(url="/auth/login", status_code=303)
+    recommendation = rec_service.ensure(db, user)
+    last_run = rec_service.last_run(db, user.id)
     return templates.TemplateResponse(
         request,
         "recommendations.html",
-        {"current_user": user},
+        {
+            "current_user": user,
+            "recommendation": recommendation,
+            "picks": rec_service.with_products(db, recommendation),
+            "last_run": last_run,
+        },
     )
+
+
+@router.post("/recommendations/refresh")
+def refresh_recommendations(
+    request: Request,
+    user: User | None = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        return RedirectResponse(url="/auth/login", status_code=303)
+    rec_service.refresh(db, user)
+    return RedirectResponse(url="/recommendations", status_code=303)

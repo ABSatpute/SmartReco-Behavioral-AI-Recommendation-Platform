@@ -30,6 +30,13 @@ def get_client() -> OpenAI:
 
 def chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     """One LLM chat completion via Mesh. Returns the text content."""
+    return chat_meta(messages, model=model, **kwargs)[0]
+
+
+def chat_meta(
+    messages: list[dict], model: str | None = None, **kwargs
+) -> tuple[str, int]:
+    """LLM chat completion via Mesh. Returns (text content, total_tokens)."""
     try:
         response = get_client().chat.completions.create(
             model=model or settings.llm_model,
@@ -39,7 +46,17 @@ def chat(messages: list[dict], model: str | None = None, **kwargs) -> str:
     except Exception as exc:  # noqa: BLE001 - surface as MeshError
         logger.exception("Mesh chat failed")
         raise MeshError(str(exc)) from exc
-    return response.choices[0].message.content or ""
+    content = response.choices[0].message.content or ""
+    usage = getattr(response, "usage", None)
+    total_tokens = 0
+    if usage is not None:
+        total_tokens = getattr(usage, "total_tokens", 0) or 0
+    return content, total_tokens
+
+
+def estimate_tokens(texts: list[str]) -> int:
+    """Rough token estimate for embedding/input text (observability only)."""
+    return int(sum(len(t) / 4 for t in texts))
 
 
 def embed(texts: list[str], model: str | None = None) -> list[list[float]]:

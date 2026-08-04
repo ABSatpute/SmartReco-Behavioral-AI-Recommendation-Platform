@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
 
+    # Agent engine tuning
+    min_events_threshold: int = 3
+    min_reco_run_interval_minutes: int = 30
+    reco_validity_minutes: int = 60
+    agent_max_refine_loops: int = 2
+    agent_max_generate_retries: int = 2
+    analysis_model: str = "minimax/m2-her"
+
     digest_time: str = "09:00"
     digest_timezone: str = "Asia/Kolkata"
 

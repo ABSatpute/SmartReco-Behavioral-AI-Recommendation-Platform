@@ -101,6 +101,28 @@ body {
   margin-right: 0.25rem;
 }
 .badge-best { background: #fef3c7; color: #92400e; }
+.badge-rank { background: #e0f2fe; color: #075985; font-weight: 700; }
+
+.reco-hero {
+  background: linear-gradient(135deg, #eef1fb, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.reco-summary { margin: 0.25rem 0 0.75rem; font-size: 1.4rem; color: var(--brand); }
+.reco-narrative { color: var(--fg); font-size: 1rem; max-width: 60rem; }
+.reco-rationale { color: var(--muted); font-size: 0.85rem; margin: 0.5rem 0 0; }
+
+.empty-state {
+  background: var(--card-bg);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+}
+.empty-state h2 { margin-top: 0; }
+
 
 .detail-layout { display: flex; gap: 2rem; }
 .detail-img img { max-width: 360px; width: 100%; border-radius: 8px; border: 1px solid var(--border); }

@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
+from app.deps import require_user
 from app.models import Session as DBSession
-from app.models import UserEvent
-from app.schemas import EventBatchIn
+from app.models import User, UserEvent
+from app.schemas import EventBatchIn, RecommendationOut
 from app.services import auth as auth_service
+from app.services import recommendations as rec_service
 
 router = APIRouter(prefix="/api")
 
@@ -68,3 +70,15 @@ def ingest_events(
         )
 
     return {"status": "ok", "stored": stored}
+
+
+@router.get("/recommendations/latest")
+def api_latest_recommendation(
+    request: Request,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    recommendation = rec_service.valid_latest(db, user.id)
+    if recommendation is None:
+        return {"status": "none", "message": "No valid recommendation yet. Browse a little more."}
+    return RecommendationOut.model_validate(recommendation)

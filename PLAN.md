@@ -438,3 +438,13 @@ SmartReco/
 | Scheduler timezones | Configurable `DIGEST_TIME` + explicit `ZoneInfo` tz |
 | Auto-checks require zero syntax errors | Run `python -m compileall app tests` in CI + locally before push |
 | No hardcoded secrets | `.env` only; `.env.example` with placeholders |
+
+---
+
+## 17. Progress log
+
+- **M1 (committed)** scaffold, auth, schema, batch event ingest.
+- **M2 (committed)** product CRUD, Mesh embeddings, Pinecone dual-write, resync CLI.
+- **M3 (committed)** tracker.js + ingest; Postgres-only enforcement; tests on `smartreco_test`.
+- **Amazon dataset (committed)** full schema (asin/stars/reviews/best-seller/etc.), `load_amazon` CLI, image rendering, loader tests.
+- **M4 agent engine (committed)** `app/agent/*` LangGraph workflow (analyze/decide/retrieve/evaluate/refine/generate/store), trigger policy + cooldown + cache in `services/recommendations.py`, grounding validation (hallucinated ids rejected → regenerate → fallback), `agent_runs` trace, endpoints + UI page + refresh.
