@@ -1,6 +1,9 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite:///./test_smartreco.db"
+os.environ.setdefault(
+    "TEST_DATABASE_URL", "postgresql://smartreco:smartreco@localhost:5432/smartreco_test"
+)
+os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 os.environ["APP_ENV"] = "test"
 
 import pytest

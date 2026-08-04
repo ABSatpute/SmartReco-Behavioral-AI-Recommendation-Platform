@@ -6,12 +6,12 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
-    JSON,
     Numeric,
     String,
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -59,7 +59,7 @@ class Product(Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     description: Mapped[str] = mapped_column(Text, default="")
     category: Mapped[str] = mapped_column(String(100), index=True)
-    tags: Mapped[list] = mapped_column(JSON, default=list)
+    tags: Mapped[list] = mapped_column(JSONB, default=list)
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     level: Mapped[str | None] = mapped_column(String(32), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -83,7 +83,7 @@ class UserEvent(Base):
     event_type: Mapped[str] = mapped_column(String(50), index=True)
     entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     entity_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow_naive, index=True
     )
@@ -137,7 +137,7 @@ class AgentRun(Base):
     )
     trace_id: Mapped[str] = mapped_column(String(64), index=True)
     trigger: Mapped[str] = mapped_column(String(32), default="auto")
-    steps: Mapped[dict] = mapped_column(JSON, default=dict)
+    steps: Mapped[dict] = mapped_column(JSONB, default=dict)
     llm_calls: Mapped[int] = mapped_column(Integer, default=0)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)

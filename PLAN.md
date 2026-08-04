@@ -12,7 +12,7 @@ All LLM/AI calls (chat **and** embeddings) go through **Mesh API** (OpenAI-compa
 |-----------------|-------------------------------------------------------------------------|
 | Backend         | FastAPI (Python 3.11+)                                                  |
 | Frontend        | Jinja2 server-rendered templates + vanilla JS tracking client            |
-| Main DB         | PostgreSQL (default, via SQLAlchemy + psycopg); SQLite fallback for tests/CI |
+| Main DB         | PostgreSQL (SQLAlchemy + psycopg) — no SQLite anywhere          |
 | Vector DB       | Pinecone (serverless index)                                             |
 | LLM/AI access   | Mesh API — `https://api.meshapi.ai/v1`, key `rsk_...` (in `.env`)        |
 | Agent framework | LangGraph (explicit reasoning workflow)                                 |
@@ -30,7 +30,7 @@ Browser (Jinja2 + JS tracker)
    ▼
 FastAPI app
    ├── Auth/session layer
-   ├── Product CRUD ──► SQLite ──► Pinecone (dual-write, kept in sync)
+   ├── Product CRUD ──► PostgreSQL ──► Pinecone (dual-write, kept in sync)
    ├── Event ingest (validates, batches, persists)
    ├── Recommendation service (cache + trigger policy)
    │        │
@@ -52,10 +52,9 @@ agent run. No LLM call happens on a bare page view.
 
 ## 3. Database schema
 
-Model layer is SQLAlchemy (declarative). Production default is **PostgreSQL** (`DATABASE_URL`
-in `.env`, `postgresql://...`); tests/CI run against SQLite so no external service is needed
-to run the test suite. JSON columns use `JSONB` on Postgres, `JSON` on SQLite. The schema
-below is DB-agnostic.
+Model layer is SQLAlchemy (declarative). PostgreSQL is the only database — production
+and tests. Dev/test DBs are created by `docker compose up -d db` (main DB `smartreco`,
+test DB `smartreco_test` via the init script). JSON columns use `JSONB`.
 
 ### `users`
 | column      | type        | notes                          |
@@ -187,9 +186,9 @@ class VectorStore(Protocol):
 ### Retrieval robustness
 - Primary path is Pinecone semantic retrieval. If Mesh embeddings are unavailable or
   rate-limited, retrieval degrades to a catalog-grounded keyword search (PostgreSQL
-  full-text search / `tsvector`, or SQLite FTS5) so the agent still returns real,
-  grounded products. This resilience path is clearly logged in the agent run trace — it
-  is a fallback, never the default.
+  full-text search / `tsvector`) so the agent still returns real, grounded products.
+  This resilience path is clearly logged in the agent run trace — it is a fallback,
+  never the default.
 
 ---
 
@@ -403,8 +402,8 @@ SmartReco/
 - Public GitHub repo = submission. `requirements.txt` includes `fastapi`, an LLM client
   (`openai`) and `langgraph`.
 - `.gitignore`: `.env`, `*.db`, `__pycache__/`, `.venv/`, etc.
-- Local dev: Postgres started via `docker compose up -d db` (`docker-compose.yml` in repo);
-  if no Postgres is available, `DATABASE_URL` can point at SQLite for a quick run.
+- Postgres is required: `docker compose up -d db` creates the `smartreco` and
+  `smartreco_test` databases (init script). No SQLite fallback exists.
 - `.github/workflows/smartreco-checks.yml` downloaded from
   `https://careerapi-production.krishnaik.in/api/ci/hackathons/smartreco-build-challenge-2026/workflow.yml`
 - GitHub secrets: `MESH_API_KEY`, `SUBMISSION_TOKEN` (not used at runtime by app).

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     app_name: str = "SmartReco"
     app_env: str = "development"
     secret_key: str = "dev-only-change-me"
-    database_url: str = f"sqlite:///{BASE_DIR / 'smartreco.db'}"
+    database_url: str = "postgresql://smartreco:smartreco@localhost:5432/smartreco"
     session_cookie: str = "smartreco_session"
     session_ttl_days: int = 30
 
@@ -35,10 +35,6 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     email_from: str = ""
-
-    @property
-    def is_sqlite(self) -> bool:
-        return self.database_url.startswith("sqlite")
 
 
 settings = Settings()
