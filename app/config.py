@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     pinecone_environment: str = ""
     pinecone_index: str = "smartreco"
     pinecone_dimension: int = 1536
+    pinecone_cloud: str = "aws"
+    pinecone_region: str = "us-east-1"
 
     digest_time: str = "09:00"
     digest_timezone: str = "Asia/Kolkata"

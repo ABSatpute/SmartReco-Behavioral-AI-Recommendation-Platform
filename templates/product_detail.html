@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.title if product else 'Not found' }} · SmartReco{% endblock %}
+
+{% block content %}
+{% if not product %}
+  <h1>Product not found</h1>
+  <p><a href="/">Back to catalog</a></p>
+{% else %}
+<div class="product-detail" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
+  <h1>{{ product.title }}</h1>
+  <span class="product-category">{{ product.category }}</span>
+  {% if product.level %}<span class="badge">{{ product.level }}</span>{% endif %}
+  <p class="product-price">${{ product.price }}</p>
+  {% if product.tags %}
+    <p class="tags">{% for tag in product.tags %}<span class="badge">{{ tag }}</span>{% endfor %}</p>
+  {% endif %}
+  <p>{{ product.description }}</p>
+
+  <button class="btn btn-primary" data-add-to-cart="{{ product.id }}">Add to cart</button>
+  <a href="/" class="btn">Back to catalog</a>
+</div>
+{% endif %}
+{% endblock %}

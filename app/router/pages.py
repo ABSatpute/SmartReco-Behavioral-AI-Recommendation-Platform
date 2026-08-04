@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import current_user
 from app.models import Product, User
+from app.services import products as product_service
 from app.templating import templates
 
 router = APIRouter()
@@ -26,6 +27,43 @@ def home(
         request,
         "index.html",
         {"current_user": user, "products": products},
+    )
+
+
+@router.get("/products/{slug}", response_class=HTMLResponse)
+def product_detail(
+    slug: str,
+    request: Request,
+    user: User | None = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    product = product_service.get_product_by_slug(db, slug)
+    if product is None:
+        return templates.TemplateResponse(
+            request,
+            "product_detail.html",
+            {"current_user": user, "product": None},
+            status_code=404,
+        )
+    return templates.TemplateResponse(
+        request,
+        "product_detail.html",
+        {"current_user": user, "product": product},
+    )
+
+
+@router.get("/search", response_class=HTMLResponse)
+def search_page(
+    request: Request,
+    q: str = "",
+    user: User | None = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    products = product_service.search_products(db, q) if q else []
+    return templates.TemplateResponse(
+        request,
+        "search.html",
+        {"current_user": user, "query": q, "products": products},
     )
 
 

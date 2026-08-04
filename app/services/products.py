@@ -1,0 +1,196 @@
+"""Product service: SQL CRUD + Pinecone dual-write.
+
+SQL is the source of truth; the vector store is derived and kept in sync. Vector
+writes are best-effort (failures are logged and recoverable via resync_vectors).
+"""
+import logging
+import re
+
+from sqlalchemy.orm import Session
+
+from app.models import Product
+from app.services import mesh
+from app.utils import utcnow_naive
+from app.vector_store import get_vector_store
+
+logger = logging.getLogger(__name__)
+
+
+def slugify(title: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    return slug or "product"
+
+
+def _unique_slug(db: Session, title: str, exclude_id: int | None = None) -> str:
+    base = slugify(title)
+    candidate = base
+    n = 2
+    while True:
+        q = db.query(Product).filter(Product.slug == candidate)
+        if exclude_id is not None:
+            q = q.filter(Product.id != exclude_id)
+        if q.first() is None:
+            return candidate
+        candidate = f"{base}-{n}"
+        n += 1
+
+
+def _product_text(product: Product) -> str:
+    parts = [product.title, product.category, " ".join(product.tags or [])]
+    if product.description:
+        parts.append(product.description)
+    return " ".join(p for p in parts if p).lower()[:8000]
+
+
+def _embed_products(db: Session, products: list[Product]) -> dict[int, list[float]]:
+    """Embed many products in one Mesh call (batched)."""
+    texts = [_product_text(p) for p in products]
+    vectors = mesh.embed(texts)
+    return {p.id: vec for p, vec in zip(products, vectors)}
+
+
+def sync_product_vector(db: Session, product: Product) -> None:
+    """Dual-write: push (or remove) a single product's vector."""
+    store = get_vector_store()
+    vector_id = f"product:{product.id}"
+    if not product.is_active:
+        store.delete([vector_id])
+        return
+    try:
+        vector = mesh.embed_one(_product_text(product))
+        store.upsert(
+            [
+                (
+                    vector_id,
+                    vector,
+                    {
+                        "title": product.title,
+                        "category": product.category,
+                        "tags": product.tags or [],
+                        "price": float(product.price),
+                        "level": product.level or "",
+                        "is_active": product.is_active,
+                    },
+                )
+            ]
+        )
+    except mesh.MeshError as exc:
+        logger.error("Vector sync failed for product %s: %s", product.id, exc)
+
+
+def create_product(db: Session, data: dict) -> Product:
+    product = Product(
+        title=data["title"],
+        slug=_unique_slug(db, data["title"]),
+        description=data.get("description", ""),
+        category=data.get("category", ""),
+        tags=data.get("tags", []),
+        price=float(data.get("price", 0)),
+        level=data.get("level") or None,
+        image_url=data.get("image_url") or None,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    sync_product_vector(db, product)
+    return product
+
+
+def update_product(db: Session, product: Product, data: dict) -> Product:
+    product.title = data["title"]
+    product.description = data.get("description", "")
+    product.category = data.get("category", "")
+    product.tags = data.get("tags", [])
+    product.price = float(data.get("price", 0))
+    product.level = data.get("level") or None
+    product.image_url = data.get("image_url") or None
+    product.updated_at = utcnow_naive()
+    db.commit()
+    db.refresh(product)
+    sync_product_vector(db, product)
+    return product
+
+
+def delete_product(db: Session, product: Product) -> None:
+    """Soft delete: hide from catalog and remove its vector."""
+    product.is_active = False
+    product.updated_at = utcnow_naive()
+    db.commit()
+    sync_product_vector(db, product)
+
+
+def hard_delete_product(db: Session, product: Product) -> None:
+    get_vector_store().delete([f"product:{product.id}"])
+    db.delete(product)
+    db.commit()
+
+
+def get_product_by_slug(db: Session, slug: str) -> Product | None:
+    return (
+        db.query(Product)
+        .filter(Product.slug == slug, Product.is_active.is_(True))
+        .first()
+    )
+
+
+def get_product_by_id(db: Session, product_id: int) -> Product | None:
+    return db.query(Product).filter(Product.id == product_id).first()
+
+
+def list_products(db: Session, include_inactive: bool = False) -> list[Product]:
+    q = db.query(Product)
+    if not include_inactive:
+        q = q.filter(Product.is_active.is_(True))
+    return q.order_by(Product.created_at.desc()).all()
+
+
+def search_products(db: Session, query: str) -> list[Product]:
+    """Catalog-grounded keyword search (used by the search page and as the
+    retrieval fallback when embeddings are unavailable)."""
+    q = query.strip()
+    if not q:
+        return []
+    like = f"%{q}%"
+    return (
+        db.query(Product)
+        .filter(Product.is_active.is_(True))
+        .filter(
+            (Product.title.ilike(like))
+            | (Product.description.ilike(like))
+            | (Product.category.ilike(like))
+        )
+        .limit(20)
+        .all()
+    )
+
+
+def resync_all(db: Session) -> int:
+    """Re-embed every active product into the vector store. Returns count."""
+    store = get_vector_store()
+    products = list_products(db)
+    if not products:
+        return 0
+    vectors_by_id = _embed_products(db, products)
+    payload = []
+    for p in products:
+        vector_id = f"product:{p.id}"
+        vector = vectors_by_id.get(p.id)
+        if vector is None:
+            logger.error("No embedding for product %s", p.id)
+            continue
+        payload.append(
+            (
+                vector_id,
+                vector,
+                {
+                    "title": p.title,
+                    "category": p.category,
+                    "tags": p.tags or [],
+                    "price": float(p.price),
+                    "level": p.level or "",
+                    "is_active": p.is_active,
+                },
+            )
+        )
+    store.upsert(payload)
+    return len(payload)

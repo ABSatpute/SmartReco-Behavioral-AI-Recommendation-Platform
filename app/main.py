@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
-from app.router import api, auth, pages
+from app.router import admin, api, auth, pages
 
 
 @asynccontextmanager
@@ -20,3 +20,4 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(pages.router)
 app.include_router(auth.router)
 app.include_router(api.router)
+app.include_router(admin.router)

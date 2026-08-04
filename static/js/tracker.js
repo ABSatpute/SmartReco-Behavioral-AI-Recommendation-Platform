@@ -1,4 +1,6 @@
-/* SmartReco behavioral tracker — batched, throttled, non-blocking. */
+/* SmartReco behavioral tracker — batched, throttled, non-blocking.
+ * Captures: page_view, product_view, product_click, search, add_to_cart.
+ */
 (function () {
   "use strict";
 
@@ -39,20 +41,58 @@
     if (buffer.length >= BATCH_SIZE) flush();
   }
 
-  function flush() {
-    if (!buffer.length) return;
-    var batch = buffer.splice(0, buffer.length);
+  function send(batch) {
     try {
       navigator.sendBeacon(endpoint, new Blob([JSON.stringify({ events: batch })], { type: "application/json" }));
-    } catch (e) {
-      try {
-        fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ events: batch }),
-          keepalive: true,
-        }).catch(function () { /* silent */ });
-      } catch (e2) { /* silent */ }
+      return;
+    } catch (e) { /* fall through to fetch */ }
+    try {
+      fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ events: batch }),
+        keepalive: true,
+      }).catch(function () { /* silent */ });
+    } catch (e2) { /* silent */ }
+  }
+
+  function flush() {
+    if (!buffer.length) return;
+    send(buffer.splice(0, buffer.length));
+  }
+
+  function trackClick(el, eventType) {
+    var id = el.getAttribute("data-product-id");
+    var slug = el.getAttribute("data-product-slug");
+    push({ event_type: eventType, entity_type: "product", entity_id: id || slug });
+  }
+
+  function bindEvents() {
+    document.addEventListener("click", function (e) {
+      var card = e.target.closest ? e.target.closest("[data-product-id][data-product-slug]") : null;
+      if (card) { trackClick(card, "product_click"); return; }
+      var cart = e.target.closest ? e.target.closest("[data-add-to-cart]") : null;
+      if (cart) {
+        push({ event_type: "add_to_cart", entity_type: "product", entity_id: cart.getAttribute("data-add-to-cart") });
+      }
+    });
+
+    var searchForm = document.querySelector("form[action$='/search']");
+    if (searchForm) {
+      searchForm.addEventListener("submit", function () {
+        var input = searchForm.querySelector("input[name='q']");
+        var q = input ? input.value.trim() : "";
+        if (q) push({ event_type: "search", entity_type: "query", entity_id: q });
+      });
+    }
+  }
+
+  function trackPageView() {
+    var detail = document.querySelector(".product-detail[data-product-id]");
+    if (detail && detail.dataset && detail.dataset.productId) {
+      push({ event_type: "product_view", entity_type: "product", entity_id: detail.dataset.productId });
+    } else {
+      push({ event_type: "page_view", entity_type: "page", entity_id: window.location.pathname });
     }
   }
 
@@ -63,6 +103,8 @@
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "hidden") flush();
     });
+    bindEvents();
+    trackPageView();
   }
 
   window.SmartRecoTracker = {
@@ -70,5 +112,9 @@
     flush: flush,
   };
 
-  start();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
 })();

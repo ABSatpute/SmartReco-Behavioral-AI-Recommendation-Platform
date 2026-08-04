@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Search · SmartReco{% endblock %}
+
+{% block content %}
+<h1>Search</h1>
+<form method="get" action="/search" class="search-form">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search courses…" class="search-input">
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if query %}
+  <h2>{{ products|length }} result{{ 's' if products|length != 1 else '' }} for "{{ query }}"</h2>
+{% endif %}
+
+<div class="product-grid">
+  {% for product in products %}
+    <a class="product-card" href="/products/{{ product.slug }}" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
+      <h3 class="product-title">{{ product.title }}</h3>
+      <span class="product-category">{{ product.category }}</span>
+      <p class="product-desc">{{ product.description[:120] }}{% if product.description|length > 120 %}…{% endif %}</p>
+      <span class="product-price">${{ product.price }}</span>
+    </a>
+  {% else %}
+    {% if query %}<p>No courses match your search.</p>{% endif %}
+  {% endfor %}
+</div>
+{% endblock %}

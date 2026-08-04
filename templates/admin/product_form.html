@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · {{ 'Edit' if product else 'New' }} product · SmartReco{% endblock %}
+
+{% block content %}
+<h1>{{ 'Edit product' if product else 'New product' }}</h1>
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<form method="post" action="{{ '/admin/products/' ~ product.id if product else '/admin/products' }}" class="form form-wide">
+  <div class="form-field">
+    <label for="title">Title *</label>
+    <input type="text" id="title" name="title" required value="{{ product.title if product else '' }}">
+  </div>
+  <div class="form-field">
+    <label for="category">Category *</label>
+    <input type="text" id="category" name="category" required value="{{ product.category if product else '' }}">
+  </div>
+  <div class="form-field">
+    <label for="price">Price *</label>
+    <input type="number" id="price" name="price" step="0.01" min="0" required value="{{ product.price if product else '' }}">
+  </div>
+  <div class="form-field">
+    <label for="level">Level</label>
+    <select id="level" name="level">
+      <option value="">—</option>
+      {% for opt in ['beginner', 'intermediate', 'advanced'] %}
+        <option value="{{ opt }}" {% if product and product.level == opt %}selected{% endif %}>{{ opt }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-field">
+    <label for="tags">Tags (space or comma separated)</label>
+    <input type="text" id="tags" name="tags" value="{{ (product.tags or []) | join(' ') if product else '' }}">
+  </div>
+  <div class="form-field">
+    <label for="image_url">Image URL</label>
+    <input type="url" id="image_url" name="image_url" value="{{ product.image_url if product and product.image_url else '' }}">
+  </div>
+  <div class="form-field">
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="6">{{ product.description if product else '' }}</textarea>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/admin/products" class="btn">Cancel</a>
+  </div>
+</form>
+{% endblock %}

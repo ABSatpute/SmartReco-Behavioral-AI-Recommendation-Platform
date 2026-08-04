@@ -19,7 +19,7 @@ bcrypt>=4.1
 openai>=1.40
 
 # ---- Vector DB ----
-pinecone-client>=5.0
+pinecone>=5.0
 
 # ---- Agent (bonus) ----
 langgraph>=0.2

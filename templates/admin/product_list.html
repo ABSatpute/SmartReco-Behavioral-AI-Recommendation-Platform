@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Products · SmartReco{% endblock %}
+
+{% block content %}
+<h1>Admin — Products</h1>
+<a class="btn btn-primary" href="/admin/products/new">+ New product</a>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th><th>Title</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for product in products %}
+    <tr>
+      <td>{{ product.id }}</td>
+      <td>{{ product.title }}</td>
+      <td>{{ product.category }}</td>
+      <td>${{ product.price }}</td>
+      <td>
+        {% if product.is_active %}active{% else %}<span class="muted">inactive</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a href="/admin/products/{{ product.id }}/edit">Edit</a>
+        {% if product.is_active %}
+        <form method="post" action="/admin/products/{{ product.id }}/delete" class="inline-form">
+          <button type="submit" class="btn-link danger">Delete</button>
+        </form>
+        {% else %}
+        <a href="/admin/products/{{ product.id }}/restore">Restore</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
