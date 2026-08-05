@@ -5,6 +5,7 @@ writes are best-effort (failures are logged and recoverable via resync_vectors).
 """
 import logging
 import re
+import time
 
 from sqlalchemy.orm import Session
 
@@ -64,6 +65,58 @@ def _embed_products(db: Session, products: list[Product]) -> dict[int, list[floa
     texts = [_product_text(p) for p in products]
     vectors = mesh.embed(texts)
     return {p.id: vec for p, vec in zip(products, vectors)}
+
+
+def _embed_chunk_resilient(db: Session, chunk: list[Product], attempts: int = 3) -> dict[int, list[float]]:
+    """Embed one chunk with bounded retries on transient Mesh errors."""
+    last: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return _embed_products(db, chunk)
+        except mesh.MeshError as exc:
+            last = exc
+            logger.warning("Embed chunk failed (attempt %s/%s): %s", attempt, attempts, exc)
+            if attempt < attempts:
+                time.sleep(2 * attempt)
+    raise last  # type: ignore[misc]
+
+
+def _upsert_chunk_resilient(store, payload: list, attempts: int = 3) -> int:
+    """Upsert one chunk with bounded retries on transient Pinecone failures."""
+    last: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            store.upsert(payload)
+            return len(payload)
+        except Exception as exc:  # noqa: BLE001 - Pinecone base except wraps network/timeout
+            last = exc
+            logger.warning("Vector upsert failed (attempt %s/%s): %s", attempt, attempts, exc)
+            if attempt < attempts:
+                time.sleep(2 * attempt)
+    logger.error("Dropping %s vectors after %s failed attempts", len(payload), attempts)
+    return 0
+
+
+def _sync_products(db: Session, products: list[Product]) -> int:
+    """Embed + upsert a product list in resilient 50-item chunks. Returns count."""
+    store = get_vector_store()
+    embedded = 0
+    for i in range(0, len(products), 50):
+        chunk = products[i : i + 50]
+        try:
+            vectors_by_id = _embed_chunk_resilient(db, chunk)
+        except Exception as exc:  # noqa: BLE001 - never let one chunk kill a full backfill
+            logger.error("Skipping chunk of %s products after embed failures: %s", len(chunk), exc)
+            continue
+        payload = []
+        for p in chunk:
+            vector = vectors_by_id.get(p.id)
+            if vector is None:
+                continue
+            payload.append((f"product:{p.id}", vector, _vector_metadata(p)))
+        if payload:
+            embedded += _upsert_chunk_resilient(store, payload)
+    return embedded
 
 
 def sync_product_vector(db: Session, product: Product) -> None:
@@ -174,21 +227,10 @@ def search_products(db: Session, query: str) -> list[Product]:
 
 def resync_all(db: Session) -> int:
     """Re-embed every active product into the vector store. Returns count."""
-    store = get_vector_store()
     products = list_products(db)
     if not products:
         return 0
-    vectors_by_id = _embed_products(db, products)
-    payload = []
-    for p in products:
-        vector_id = f"product:{p.id}"
-        vector = vectors_by_id.get(p.id)
-        if vector is None:
-            logger.error("No embedding for product %s", p.id)
-            continue
-        payload.append((vector_id, vector, _vector_metadata(p)))
-    store.upsert(payload)
-    return len(payload)
+    return _sync_products(db, products)
 
 
 def bulk_create_products(db: Session, rows: list[dict]) -> list[int]:
@@ -243,7 +285,6 @@ def bulk_create_products(db: Session, rows: list[dict]) -> list[int]:
 
 def embed_product_batch(db: Session, product_ids: list[int]) -> int:
     """Embed a set of products in batched Mesh calls and upsert to the store."""
-    store = get_vector_store()
     if not product_ids:
         return 0
     products = (
@@ -251,14 +292,4 @@ def embed_product_batch(db: Session, product_ids: list[int]) -> int:
     )
     if not products:
         return 0
-    payload = []
-    for i in range(0, len(products), 50):
-        chunk = products[i : i + 50]
-        vectors_by_id = _embed_products(db, chunk)
-        for p in chunk:
-            vector = vectors_by_id.get(p.id)
-            if vector is None:
-                continue
-            payload.append((f"product:{p.id}", vector, _vector_metadata(p)))
-    store.upsert(payload)
-    return len(payload)
+    return _sync_products(db, products)
