@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require_admin
-from app.models import Product, User
+from app.models import AgentRun, Product, User, UserEvent
+from app.observability import current_trace_id, langsmith_enabled
 from app.services import products as product_service
 from app.templating import templates
 
@@ -175,3 +176,36 @@ def restore_product(
     db.commit()
     product_service.sync_product_vector(db, product)
     return RedirectResponse(url="/admin/products", status_code=303)
+
+
+@router.get("/observability", response_class=HTMLResponse)
+def observability_page(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    recent_runs = (
+        db.query(AgentRun)
+        .order_by(AgentRun.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    run_counts = (
+        db.query(AgentRun).filter(AgentRun.error.is_(None)).count(),
+        db.query(AgentRun).filter(AgentRun.error.isnot(None)).count(),
+    )
+    event_count = db.query(UserEvent).count()
+    return templates.TemplateResponse(
+        request,
+        "admin/observability.html",
+        {
+            "current_user": user,
+            "recent_runs": recent_runs,
+            "total_runs": sum(run_counts),
+            "successful_runs": run_counts[0],
+            "failed_runs": run_counts[1],
+            "event_count": event_count,
+            "langsmith_enabled": langsmith_enabled(),
+            "current_trace_id": current_trace_id(),
+        },
+    )

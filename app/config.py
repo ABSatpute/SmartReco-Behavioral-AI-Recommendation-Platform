@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     app_name: str = "SmartReco"
     app_env: str = "development"
+    app_project_name: str = "smartreco"
+
+    langsmith_api_key: str = ""
     secret_key: str = "dev-only-change-me"
     database_url: str = "postgresql://smartreco:smartreco@localhost:5432/smartreco"
     app_base_url: str = "http://localhost:8000"

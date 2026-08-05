@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.agent.graph import agent_graph
 from app.config import settings
 from app.models import AgentRun, Product, Recommendation, RecommendationItem, User
+from app.observability import current_trace_id
 from app.services import events as events_service
 from app.utils import utcnow_naive
 
@@ -110,7 +111,7 @@ def run(
 
     state = {
         "user_id": user.id,
-        "trace_id": uuid.uuid4().hex[:16],
+        "trace_id": current_trace_id() or uuid.uuid4().hex[:16],
         "trigger": trigger,
         "source": source,
         "trigger_reason": _trigger_reason(db, user.id),

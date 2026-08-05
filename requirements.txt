@@ -24,6 +24,9 @@ pinecone>=5.0
 # ---- Agent (bonus) ----
 langgraph>=0.2
 
+# ---- Observability (bonus) ----
+langsmith>=0.1
+
 # ---- Scheduling (bonus) ----
 APScheduler>=3.10
 

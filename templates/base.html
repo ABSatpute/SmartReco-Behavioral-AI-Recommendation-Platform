@@ -14,6 +14,7 @@
         <span class="navbar-user">Hi, {{ current_user.full_name or current_user.email }}</span>
         {% if current_user.role == 'admin' %}
           <a href="/admin/products">Admin</a>
+          <a href="/admin/observability">Observability</a>
         {% endif %}
         <a href="/recommendations">My Recommendations</a>
         <form method="post" action="/auth/logout" class="inline-form">

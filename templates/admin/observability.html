@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Observability · SmartReco{% endblock %}
+
+{% block content %}
+<h1>Admin — Observability</h1>
+
+<p>
+  LangSmith tracing:
+  <strong>{% if langsmith_enabled %}enabled{% else %}disabled (no API key){% endif %}</strong> ·
+  Request trace id: <code>{{ current_trace_id or '—' }}</code>
+</p>
+
+<div class="stat-grid">
+  <div class="stat"><span class="stat-value">{{ total_runs }}</span><span class="stat-label">Total agent runs</span></div>
+  <div class="stat"><span class="stat-value">{{ successful_runs }}</span><span class="stat-label">Successful</span></div>
+  <div class="stat"><span class="stat-value">{{ failed_runs }}</span><span class="stat-label">Failed</span></div>
+  <div class="stat"><span class="stat-value">{{ event_count }}</span><span class="stat-label">Behavioral events</span></div>
+</div>
+
+<h2>Recent agent runs</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th><th>Trace id</th><th>Trigger</th><th>LLM calls</th><th>Tokens</th><th>Ms</th><th>Status</th><th>When</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in recent_runs %}
+    <tr>
+      <td>{{ run.id }}</td>
+      <td><code>{{ run.trace_id }}</code></td>
+      <td>{{ run.trigger }}</td>
+      <td>{{ run.llm_calls }}</td>
+      <td>{{ run.total_tokens }}</td>
+      <td>{{ run.duration_ms }}</td>
+      <td>
+        {% if run.error %}
+          <span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>
+        {% else %}
+          ok
+        {% endif %}
+      </td>
+      <td>{{ run.created_at | string }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8"><span class="muted">No agent runs recorded yet.</span></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
