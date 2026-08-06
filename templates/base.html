@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='/SmartReco_favicon_32.png') }}?v=5">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', path='/SmartReco_favicon_16.png') }}?v=5">
   <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', path='/SmartReco_favicon_192.png') }}?v=5">
-  <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}?v=1">
 </head>
 <body>
   <header class="header">
@@ -35,7 +35,6 @@
         {% if current_user %}
           <div class="account-dropdown" data-account-dd>
             <button type="button" class="account" data-account-btn aria-haspopup="true" aria-expanded="false">
-              <span class="account-avatar" aria-hidden="true">{{ (current_user.full_name or current_user.email)[0] | upper }}</span>
               <span class="account-body">
                 <span class="account-greet">Hello, {{ current_user.full_name or current_user.email }}</span>
                 <span class="role-pill role-pill-{{ 'admin' if current_user.role == 'admin' else 'member' }}">
@@ -103,7 +102,7 @@
 
           {% if current_user and current_user.role == 'admin' %}
             <li class="nav-dropdown" data-dropdown>
-              <button class="nav-dropbtn" type="button" data-dropdown aria-haspopup="true" aria-expanded="false">
+              <button class="nav-dropbtn" type="button" data-dropdown-btn aria-haspopup="true" aria-expanded="false">
                 Admin <span aria-hidden="true">▾</span>
               </button>
               <div class="nav-menu" data-dropdown-menu>
@@ -182,9 +181,9 @@
       }
       // Dropdown toggles (header + responsive)
       document.querySelectorAll('[data-dropdown]').forEach((dd) => {
-        const btn = dd.querySelector('[data-dropdown]');
+        const btn = dd.querySelector('[data-dropdown-btn]');
         const menu = dd.querySelector('[data-dropdown-menu]');
-        if (!menu) return;
+        if (!btn || !menu) return;
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const open = menu.classList.toggle('open');
@@ -195,7 +194,7 @@
       document.addEventListener('click', () => {
         document.querySelectorAll('.nav-menu.open').forEach((m) => m.classList.remove('open'));
         document.querySelectorAll('.nav-dropdown').forEach((d) => {
-          const b = d.querySelector('[data-dropdown]'); b && b.setAttribute('aria-expanded', 'false');
+          const b = d.querySelector('[data-dropdown-btn]'); b && b.setAttribute('aria-expanded', 'false');
           d.classList.remove('open');
         });
       });

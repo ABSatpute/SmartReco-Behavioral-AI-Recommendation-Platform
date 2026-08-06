@@ -186,16 +186,6 @@ img { max-width: 100%; }
   color: var(--c-on-dark);
   padding: 0.2rem 0.3rem;
 }
-.account-avatar {
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--c-primary), var(--c-secondary));
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  font-size: 0.9rem;
-}
 .account-body { display: flex; flex-direction: column; line-height: 1.15; }
 .account-greet { font-size: 0.72rem; opacity: .85; }
 .account-line { font-size: 0.88rem; font-weight: 600; }
