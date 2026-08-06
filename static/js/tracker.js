@@ -1,5 +1,6 @@
 /* SmartReco behavioral tracker — batched, throttled, non-blocking.
- * Captures: page_view, product_view, product_click, search, add_to_cart.
+ * Captures: page_view, product_view, product_click, search, add_to_cart,
+ * time_spent (coalesced once per page on hide, with duration in seconds).
  */
 (function () {
   "use strict";
@@ -15,6 +16,8 @@
   var buffer = [];
   var lastSent = {};
   var flushTimer = null;
+  var pageStart = Date.now();
+  var timeSpentSent = false;
 
   function throttleKey(eventType, entityType, entityId) {
     return [eventType, entityType, entityId].join("|");
@@ -61,6 +64,25 @@
     send(buffer.splice(0, buffer.length));
   }
 
+  function pushTimeSpent() {
+    if (timeSpentSent) return;
+    timeSpentSent = true;
+    var duration = Math.round((Date.now() - pageStart) / 1000);
+    if (duration >= 1) {
+      push({
+        event_type: "time_spent",
+        entity_type: "page",
+        entity_id: window.location.pathname,
+        payload: { duration: duration },
+      });
+    }
+  }
+
+  function flushTimeSpent() {
+    pushTimeSpent();
+    flush();
+  }
+
   function trackClick(el, eventType) {
     var id = el.getAttribute("data-product-id");
     var slug = el.getAttribute("data-product-slug");
@@ -99,9 +121,9 @@
   function start() {
     if (flushTimer) return;
     flushTimer = setInterval(flush, BATCH_INTERVAL_MS);
-    window.addEventListener("pagehide", flush);
+    window.addEventListener("pagehide", flushTimeSpent);
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") flushTimeSpent();
     });
     bindEvents();
     trackPageView();

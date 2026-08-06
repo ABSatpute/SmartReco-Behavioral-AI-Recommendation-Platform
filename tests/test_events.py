@@ -70,3 +70,27 @@ def test_events_linked_to_user_after_login(client):
     user = db.query(User).filter(User.email == "alice@example.com").first()
     db.close()
     assert event.user_id == user.id
+
+
+def test_time_spent_duration_persisted(client):
+    resp = client.post(
+        "/api/events/batch",
+        json={
+            "events": [
+                {
+                    "event_type": "time_spent",
+                    "entity_type": "page",
+                    "entity_id": "/products/foo",
+                    "payload": {"duration": 37},
+                }
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["stored"] == 1
+
+    db = SessionLocal()
+    event = db.query(UserEvent).order_by(UserEvent.id.desc()).first()
+    db.close()
+    assert event.event_type == "time_spent"
+    assert event.payload == {"duration": 37}
