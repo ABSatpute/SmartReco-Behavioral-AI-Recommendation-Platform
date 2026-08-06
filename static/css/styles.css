@@ -106,15 +106,11 @@ img { max-width: 100%; }
   color: var(--c-on-dark);
   white-space: nowrap;
 }
-.logo-mark {
-  display: grid;
-  place-items: center;
+.logo-mark-img {
   width: 2rem; height: 2rem;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--c-primary), var(--c-secondary));
-  color: #fff;
-  font-weight: 800;
-  font-size: 1.05rem;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: .01em; }
 .logo-text span { color: var(--c-secondary); }
