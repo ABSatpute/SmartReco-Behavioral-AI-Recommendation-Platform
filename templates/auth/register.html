@@ -15,8 +15,30 @@
     <input type="email" id="email" name="email" required autofocus>
   </div>
   <div class="form-field">
+    <label for="mobile">Mobile number</label>
+    <input type="tel" id="mobile" name="mobile" required placeholder="e.g. +91 98765 43210">
+  </div>
+  <div class="form-field">
+    <label for="age">Age</label>
+    <input type="number" id="age" name="age" min="1" max="119" required>
+  </div>
+  <div class="form-field">
+    <label for="gender">Gender</label>
+    <select id="gender" name="gender" required>
+      <option value="">Select…</option>
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+      <option value="non-binary">Non-binary</option>
+      <option value="prefer not to say">Prefer not to say</option>
+    </select>
+  </div>
+  <div class="form-field">
     <label for="password">Password (min 8 characters)</label>
     <input type="password" id="password" name="password" minlength="8" required>
+  </div>
+  <div class="form-field">
+    <label for="telegram_chat_id">Telegram chat ID <span class="muted">(optional — get it by messaging your bot)</span></label>
+    <input type="text" id="telegram_chat_id" name="telegram_chat_id" placeholder="e.g. 884296262">
   </div>
   <button type="submit" class="btn btn-primary">Sign up</button>
 </form>

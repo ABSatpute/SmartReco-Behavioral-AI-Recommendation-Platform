@@ -5,7 +5,14 @@ from app.models import User
 def test_register_success(client):
     resp = client.post(
         "/auth/register",
-        data={"email": "jane@example.com", "password": "supersecret", "full_name": "Jane"},
+        data={
+            "email": "jane@example.com",
+            "password": "supersecret",
+            "full_name": "Jane",
+            "mobile": "+91 90000 00001",
+            "age": "28",
+            "gender": "female",
+        },
         follow_redirects=False,
     )
     assert resp.status_code == 303
@@ -21,14 +28,27 @@ def test_register_success(client):
 
 
 def test_register_duplicate_email(client):
-    payload = {"email": "dup@example.com", "password": "supersecret"}
+    payload = {
+        "email": "dup@example.com",
+        "password": "supersecret",
+        "mobile": "+91 90000 00002",
+        "age": "30",
+        "gender": "male",
+    }
     assert client.post("/auth/register", data=payload, follow_redirects=False).status_code == 303
     assert client.post("/auth/register", data=payload).status_code == 400
 
 
 def test_register_short_password(client):
     resp = client.post(
-        "/auth/register", data={"email": "short@example.com", "password": "short"}
+        "/auth/register",
+        data={
+            "email": "short@example.com",
+            "password": "short",
+            "mobile": "+91 90000 00003",
+            "age": "25",
+            "gender": "female",
+        },
     )
     assert resp.status_code == 400
 
@@ -36,7 +56,13 @@ def test_register_short_password(client):
 def test_login_success_and_session(client):
     client.post(
         "/auth/register",
-        data={"email": "bob@example.com", "password": "supersecret"},
+        data={
+            "email": "bob@example.com",
+            "password": "supersecret",
+            "mobile": "+91 90000 00004",
+            "age": "32",
+            "gender": "male",
+        },
     )
     client.get("/auth/logout", follow_redirects=False)
 
@@ -52,7 +78,13 @@ def test_login_success_and_session(client):
 def test_login_wrong_password(client):
     client.post(
         "/auth/register",
-        data={"email": "carol@example.com", "password": "supersecret"},
+        data={
+            "email": "carol@example.com",
+            "password": "supersecret",
+            "mobile": "+91 90000 00005",
+            "age": "27",
+            "gender": "female",
+        },
     )
     resp = client.post(
         "/auth/login",

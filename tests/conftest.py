@@ -5,6 +5,8 @@ os.environ.setdefault(
 )
 os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
 os.environ["APP_ENV"] = "test"
+os.environ["SMTP_HOST"] = ""  # isolate email tests from real SMTP credentials
+os.environ["EMAIL_BACKEND"] = "smtp"  # never hit real Resend/SMTP during tests
 
 import pytest
 from fastapi.testclient import TestClient

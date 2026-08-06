@@ -58,7 +58,13 @@ def test_ingest_reuses_anonymous_session(client):
 def test_events_linked_to_user_after_login(client):
     client.post(
         "/auth/register",
-        data={"email": "alice@example.com", "password": "supersecret"},
+        data={
+            "email": "alice@example.com",
+            "password": "supersecret",
+            "mobile": "+91 90000 00006",
+            "age": "26",
+            "gender": "female",
+        },
     )
     resp = client.post(
         "/api/events/batch", json={"events": [{"event_type": "product_view", "entity_id": "7"}]}

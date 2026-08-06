@@ -80,7 +80,14 @@ def _seed_catalog(n=3) -> None:
 def _register_user(client, email="alice@x.com"):
     client.post(
         "/auth/register",
-        data={"email": email, "password": "alicepass1", "full_name": "Alice"},
+        data={
+            "email": email,
+            "password": "alicepass1",
+            "full_name": "Alice",
+            "mobile": "+91 90000 00013",
+            "age": "31",
+            "gender": "female",
+        },
         follow_redirects=False,
     )
     db = SessionLocal()

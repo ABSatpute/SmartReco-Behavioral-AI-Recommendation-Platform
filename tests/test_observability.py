@@ -9,7 +9,14 @@ from app.observability import JsonFormatter, current_trace_id, trace_id_var
 def _register_and_make_admin(client, email="admin@x.com"):
     client.post(
         "/auth/register",
-        data={"email": email, "password": "adminpass1", "full_name": "Admin"},
+        data={
+            "email": email,
+            "password": "adminpass1",
+            "full_name": "Admin",
+            "mobile": "+91 90000 00007",
+            "age": "40",
+            "gender": "male",
+        },
         follow_redirects=False,
     )
     db = SessionLocal()
@@ -22,7 +29,14 @@ def _register_and_make_admin(client, email="admin@x.com"):
 def _register_regular(client, email="user@x.com"):
     client.post(
         "/auth/register",
-        data={"email": email, "password": "userpass1", "full_name": "User"},
+        data={
+            "email": email,
+            "password": "userpass1",
+            "full_name": "User",
+            "mobile": "+91 90000 00008",
+            "age": "24",
+            "gender": "female",
+        },
         follow_redirects=False,
     )
 

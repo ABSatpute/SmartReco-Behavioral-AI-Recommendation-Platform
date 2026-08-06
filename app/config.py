@@ -42,11 +42,26 @@ class Settings(BaseSettings):
     digest_time: str = "09:00"
     digest_timezone: str = "Asia/Kolkata"
 
+    # Email delivery: "smtp" (any ESP via SMTP) or "resend" (Resend HTTP API)
+    email_backend: str = "smtp"
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
     email_from: str = ""
+    resend_api_key: str = ""
+
+    # Notification channels (comma-separated): email, telegram
+    notification_channels: str = "email,telegram"
+    telegram_bot_token: str = ""
+
+    @property
+    def notification_channels_list(self) -> list[str]:
+        return [
+            c.strip().lower()
+            for c in self.notification_channels.split(",")
+            if c.strip().lower()
+        ]
 
 
 settings = Settings()

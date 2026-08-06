@@ -25,6 +25,20 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
 
+@app.get("/healthz")
+def healthz() -> Response:
+    from sqlalchemy import text
+
+    from app.database import engine
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return Response(content='{"status":"ok"}', media_type="application/json")
+    except Exception:
+        return Response(content='{"status":"unhealthy"}', status_code=503, media_type="application/json")
+
+
 @app.middleware("http")
 async def trace_id_middleware(request: Request, call_next):
     trace_id = request.headers.get("x-trace-id")

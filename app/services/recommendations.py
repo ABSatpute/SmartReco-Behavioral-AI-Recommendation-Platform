@@ -118,6 +118,12 @@ def run(
         "started_at": time.monotonic(),
         "events": [events_service.serialize(e) for e in events],
         "event_summary": events_service.summary_text(events),
+        "user_context": {
+            "age": user.age,
+            "gender": user.gender,
+        }
+        if (user.age or user.gender)
+        else None,
         "steps": [],
         "llm_calls": 0,
         "total_tokens": 0,

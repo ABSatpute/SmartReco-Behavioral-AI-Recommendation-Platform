@@ -7,6 +7,9 @@ Commands:
                                               ingest Amazon UK 2023 dataset CSV
   resync_vectors                              re-embed all active products to Pinecone
   check_vectors                               report vector store health
+  set_telegram --email E --chat-id ID         attach a Telegram chat id to a user
+  telegram_chats [--email E]                   list chats seen by the bot
+  test_email --to ADDR [--message MSG]        send a test email to verify the sender
 """
 import argparse
 import csv
@@ -241,6 +244,56 @@ def run_digest_now() -> None:
     print(result)
 
 
+def set_telegram(email: str, chat_id: str) -> None:
+    db = SessionLocal()
+    try:
+        user = auth_service.get_user_by_email(db, email)
+        if user is None:
+            print(f"User {email} not found.")
+            return
+        user.telegram_chat_id = chat_id.strip()
+        db.commit()
+        print(f"Set Telegram chat id {chat_id!r} for {email}.")
+    finally:
+        db.close()
+
+
+def test_email(to: str, message: str = "SmartReco test email. If you see this, email delivery is live.") -> None:
+    from app.services.digest import send_email
+
+    html = f"<p>{message}</p>"
+    text = message
+    ok = send_email(to, "SmartReco: email delivery test", html, text)
+    backend = __import__("app.config", fromlist=["settings"]).settings.email_backend
+    print("delivered" if ok else "FAILED", "| backend:", backend)
+
+
+def telegram_chats() -> None:
+    import httpx
+
+    from app.config import settings
+
+    if not settings.telegram_bot_token:
+        print("TELEGRAM_BOT_TOKEN is not set in .env.")
+        return
+    resp = httpx.get(
+        f"https://api.telegram.org/bot{settings.telegram_bot_token}/getUpdates", timeout=20
+    )
+    data = resp.json()
+    chats: dict[str, str] = {}
+    for update in data.get("result", []):
+        msg = update.get("message") or update.get("channel_post") or {}
+        chat = msg.get("chat") or {}
+        if chat.get("id") is not None:
+            label = chat.get("first_name") or chat.get("title") or chat.get("username") or "?"
+            chats[str(chat["id"])] = label
+    if not chats:
+        print("No chats found. Open your bot in Telegram and send it a message first.")
+        return
+    for cid, label in chats.items():
+        print(f"chat_id={cid}  name={label}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -254,6 +307,16 @@ def main() -> None:
     sub.add_parser("resync_vectors")
     sub.add_parser("check_vectors")
     sub.add_parser("digest")
+
+    tg = sub.add_parser("set_telegram")
+    tg.add_argument("--email", required=True)
+    tg.add_argument("--chat-id", required=True)
+
+    sub.add_parser("telegram_chats")
+
+    mail = sub.add_parser("test_email")
+    mail.add_argument("--to", required=True)
+    mail.add_argument("--message", default=None)
 
     amazon = sub.add_parser("load_amazon")
     amazon.add_argument("--csv", required=True, help="Path to the Amazon UK 2023 CSV")
@@ -274,6 +337,12 @@ def main() -> None:
         check_vectors()
     elif args.command == "digest":
         run_digest_now()
+    elif args.command == "set_telegram":
+        set_telegram(args.email, args.chat_id)
+    elif args.command == "telegram_chats":
+        telegram_chats()
+    elif args.command == "test_email":
+        test_email(args.to, args.message)
 
 
 if __name__ == "__main__":

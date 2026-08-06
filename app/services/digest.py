@@ -10,6 +10,7 @@ from datetime import timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -80,6 +81,68 @@ def render_digest(rec, products: list[dict]) -> tuple[str, str, str]:
 
 
 def send_email(to_email: str, subject: str, html: str, text: str) -> bool:
+    if settings.email_backend == "resend":
+        return _send_resend(to_email, subject, html, text)
+    return _send_smtp(to_email, subject, html, text)
+
+
+def send_telegram(chat_id: str, text: str) -> bool:
+    if not settings.telegram_bot_token:
+        logger.info("[dev-fallback] telegram message -> chat=%s", chat_id)
+        return False
+    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
+    try:
+        resp = httpx.post(
+            url,
+            json={
+                "chat_id": chat_id,
+                "text": text,
+                "disable_web_page_preview": False,
+            },
+            timeout=20,
+        )
+        if resp.status_code >= 400:
+            logger.error("Telegram API error %s: %s", resp.status_code, resp.text[:500])
+            return False
+        return True
+    except Exception:  # noqa: BLE001 - failure must not break the digest job
+        logger.exception("Telegram send failed to chat %s", chat_id)
+        return False
+
+
+def _send_resend(to_email: str, subject: str, html: str, text: str) -> bool:
+    if not settings.resend_api_key:
+        logger.info("[dev-fallback] digest email -> %s subject=%r", to_email, subject)
+        return True
+
+    try:
+        resp = httpx.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": settings.email_from or "SmartReco <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+                "text": text,
+            },
+            timeout=20,
+        )
+        if resp.status_code >= 400:
+            logger.error(
+                "Resend API error %s: %s", resp.status_code, resp.text[:500]
+            )
+            return False
+        return True
+    except Exception:  # noqa: BLE001 - sending failure must not break the job
+        logger.exception("Resend send failed to %s", to_email)
+        return False
+
+
+def _send_smtp(to_email: str, subject: str, html: str, text: str) -> bool:
     if not settings.smtp_host:
         logger.info("[dev-fallback] digest email -> %s subject=%r", to_email, subject)
         return True
@@ -142,8 +205,19 @@ def run_digest(db: Session | None = None) -> dict:
                 continue
 
             subject, html, text = render_digest(recommendation, products)
-            ok = send_email(user.email, subject, html, text)
 
+            email_ok = True
+            if "email" in settings.notification_channels_list:
+                email_ok = send_email(user.email, subject, html, text)
+
+            tg_ok = None
+            if (
+                "telegram" in settings.notification_channels_list
+                and user.telegram_chat_id
+            ):
+                tg_ok = send_telegram(user.telegram_chat_id, text)
+
+            ok = email_ok and (tg_ok is not False)
             digest = EmailDigest(
                 user_id=user_id,
                 subject=subject,

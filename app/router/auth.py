@@ -35,6 +35,10 @@ def register(
     email: str = Form(...),
     password: str = Form(...),
     full_name: str = Form(""),
+    mobile: str = Form(...),
+    age: int = Form(...),
+    gender: str = Form(...),
+    telegram_chat_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
     email = email.strip().lower()
@@ -48,11 +52,25 @@ def register(
             request, "auth/register.html", {"error": "An account with this email already exists."},
             status_code=400,
         )
+    if not mobile.strip():
+        return templates.TemplateResponse(
+            request, "auth/register.html", {"error": "Mobile number is required."},
+            status_code=400,
+        )
+    if not (0 < age < 120):
+        return templates.TemplateResponse(
+            request, "auth/register.html", {"error": "Please enter a valid age."},
+            status_code=400,
+        )
     user = User(
         email=email,
         password_hash=auth_service.hash_password(password),
         full_name=full_name.strip(),
         role="user",
+        mobile=mobile.strip(),
+        age=age,
+        gender=gender.strip() or None,
+        telegram_chat_id=telegram_chat_id.strip() or None,
     )
     db.add(user)
     db.commit()

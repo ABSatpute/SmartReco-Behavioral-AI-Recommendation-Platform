@@ -30,6 +30,7 @@ class AgentState(TypedDict, total=False):
 
     events: list  # serialized user events
     event_summary: str
+    user_context: dict | None  # known demographics: age, gender
     profile: dict | None  # InterestProfile as dict
     skip_reason: str | None
     queries: list

@@ -17,10 +17,24 @@ Rules:
 - Do not add commentary outside the JSON."""
 
 
-def analyze_user_prompt(event_summary: str, event_count: int) -> str:
+def _context_block(user_context: dict | None) -> str:
+    if not user_context:
+        return ""
+    parts = []
+    if user_context.get("age"):
+        parts.append(f"age {user_context['age']}")
+    if user_context.get("gender"):
+        parts.append(f"gender {user_context['gender']}")
+    if not parts:
+        return ""
+    return "Known user demographics: " + ", ".join(parts) + ".\n"
+
+
+def analyze_user_prompt(event_summary: str, event_count: int, user_context: dict | None = None) -> str:
     return (
         "Analyze the following recent activity of a user on a product marketplace.\n"
         f"Total activity entries: {event_count}\n\n"
+        f"{_context_block(user_context)}"
         "Recent activity:\n"
         f"{event_summary or '(no activity recorded)'}\n\n"
         "Return the JSON profile now."
@@ -44,7 +58,7 @@ Rules:
 - Ground every claim in the user profile and the candidate product facts. No generic "popular products" copy."""
 
 
-def generate_user_prompt(profile: dict, candidates: list[dict]) -> str:
+def generate_user_prompt(profile: dict, candidates: list[dict], user_context: dict | None = None) -> str:
     lines = ["CANDIDATE PRODUCTS:"]
     for c in candidates:
         fields = (
@@ -55,6 +69,7 @@ def generate_user_prompt(profile: dict, candidates: list[dict]) -> str:
     return (
         "Here is the user profile built from their recent activity:\n"
         f"{profile}\n\n"
+        f"{_context_block(user_context)}"
         + "\n".join(lines)
         + "\n\nReturn the recommendation JSON now."
     )

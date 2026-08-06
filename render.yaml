@@ -1,0 +1,41 @@
+databases:
+  - name: smartreco-db
+    plan: free
+
+services:
+  - type: web
+    name: smartreco
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smartreco-db
+          property: connectionString
+      - key: MESH_API_KEY
+        sync: false
+      - key: MESH_BASE_URL
+        value: https://api.meshapi.ai/v1
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX
+        value: smartreco
+      - key: NOTIFICATION_CHANNELS
+        value: email,telegram
+      - key: EMAIL_BACKEND
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: LANGSMITH_API_KEY
+        sync: false

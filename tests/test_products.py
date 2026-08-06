@@ -31,7 +31,14 @@ def vector_store(monkeypatch):
 def _register_and_make_admin(client, email="admin@x.com"):
     client.post(
         "/auth/register",
-        data={"email": email, "password": "adminpass1", "full_name": "Admin"},
+        data={
+            "email": email,
+            "password": "adminpass1",
+            "full_name": "Admin",
+            "mobile": "+91 90000 00009",
+            "age": "41",
+            "gender": "male",
+        },
         follow_redirects=False,
     )
     db = SessionLocal()
@@ -44,7 +51,14 @@ def _register_and_make_admin(client, email="admin@x.com"):
 def _register_regular(client, email="user@x.com"):
     client.post(
         "/auth/register",
-        data={"email": email, "password": "userpass1", "full_name": "User"},
+        data={
+            "email": email,
+            "password": "userpass1",
+            "full_name": "User",
+            "mobile": "+91 90000 00010",
+            "age": "23",
+            "gender": "female",
+        },
         follow_redirects=False,
     )
 

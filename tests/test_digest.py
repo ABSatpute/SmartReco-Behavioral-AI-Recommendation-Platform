@@ -77,7 +77,14 @@ def _seed_catalog(n=3) -> None:
 def _register_user(client, email="alice@x.com"):
     client.post(
         "/auth/register",
-        data={"email": email, "password": "alicepass1", "full_name": "Alice"},
+        data={
+            "email": email,
+            "password": "alicepass1",
+            "full_name": "Alice",
+            "mobile": "+91 90000 00011",
+            "age": "29",
+            "gender": "female",
+        },
         follow_redirects=False,
     )
     db = SessionLocal()
@@ -210,7 +217,14 @@ def test_admin_digest_test_endpoint(client, vector_store):
     _seed_catalog()
     client.post(
         "/auth/register",
-        data={"email": "admin@x.com", "password": "adminpass1", "full_name": "Admin"},
+        data={
+            "email": "admin@x.com",
+            "password": "adminpass1",
+            "full_name": "Admin",
+            "mobile": "+91 90000 00012",
+            "age": "35",
+            "gender": "male",
+        },
         follow_redirects=False,
     )
     db = SessionLocal()

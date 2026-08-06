@@ -80,6 +80,7 @@ def _query_vector_fallback(db, query: str) -> list[dict]:
 def analyze(state: dict) -> dict:
     events = state.get("events", [])
     summary = state.get("event_summary", "")
+    user_context = state.get("user_context")
     llm_calls = state.get("llm_calls", 0)
     total_tokens = state.get("total_tokens", 0)
     fallback_used = state.get("fallback_used", False)
@@ -90,7 +91,7 @@ def analyze(state: dict) -> dict:
                 {"role": "system", "content": ANALYZE_SYSTEM},
                 {
                     "role": "user",
-                    "content": analyze_user_prompt(summary, len(events)),
+                    "content": analyze_user_prompt(summary, len(events), user_context),
                 },
             ],
             model=settings.analysis_model,
@@ -274,7 +275,12 @@ def generate(state: dict) -> dict:
     candidate_ids = {c["id"] for c in candidates}
     messages = [
         {"role": "system", "content": GENERATE_SYSTEM},
-        {"role": "user", "content": generate_user_prompt(profile, candidates)},
+        {
+            "role": "user",
+            "content": generate_user_prompt(
+                profile, candidates, state.get("user_context")
+            ),
+        },
     ]
 
     result = None
