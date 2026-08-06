@@ -1,4 +1,7 @@
+import logging
 import secrets
+import threading
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,9 +11,26 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import Base, engine
 from app.observability import current_trace_id, setup_logging_and_langsmith, trace_id_var
-from app.router import admin, api, auth, pages
+from app.router import admin, api, auth, cron, pages
 from app.scheduler import shutdown as shutdown_scheduler
 from app.scheduler import start as start_scheduler
+
+logger = logging.getLogger(__name__)
+
+
+def _startup_digest_catchup() -> None:
+    """One best-effort digest shortly after boot (free-tier wake-up path).
+
+    Guarded by the per-user per-day check inside run_digest, so a cold start
+    that follows a missed scheduled slot still delivers within seconds."""
+    time.sleep(20)
+    try:
+        from app.services.digest import run_digest
+
+        result = run_digest()
+        logger.info("Startup digest catch-up: %s", result)
+    except Exception:  # noqa: BLE001 - never block boot on digest work
+        logger.exception("Startup digest catch-up failed")
 
 
 @asynccontextmanager
@@ -18,6 +38,8 @@ async def lifespan(_: FastAPI):
     setup_logging_and_langsmith()
     Base.metadata.create_all(bind=engine)
     start_scheduler()
+    if settings.app_env != "test":
+        threading.Thread(target=_startup_digest_catchup, daemon=True).start()
     yield
     shutdown_scheduler()
 
@@ -58,3 +80,4 @@ app.include_router(pages.router)
 app.include_router(auth.router)
 app.include_router(api.router)
 app.include_router(admin.router)
+app.include_router(cron.router)

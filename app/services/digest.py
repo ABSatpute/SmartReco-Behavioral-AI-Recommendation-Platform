@@ -167,6 +167,53 @@ def _send_smtp(to_email: str, subject: str, html: str, text: str) -> bool:
         return False
 
 
+def _deliver_for_user(session: Session, user: User, summary: dict) -> bool:
+    """Build + send one user's digest. Returns True when an email was sent."""
+    recommendation = rec_service.valid_latest(session, user.id)
+    if recommendation is None:
+        recommendation = rec_service.run(
+            session, user, source="daily_digest", trigger="digest", force=True
+        )
+    if recommendation is None:
+        summary["no_recommendation"] += 1
+        return False
+
+    products = rec_service.with_products(session, recommendation)
+    if not products:
+        summary["no_recommendation"] += 1
+        return False
+
+    subject, html, text = render_digest(recommendation, products)
+
+    email_ok = True
+    if "email" in settings.notification_channels_list:
+        email_ok = send_email(user.email, subject, html, text)
+
+    tg_ok = None
+    if (
+        "telegram" in settings.notification_channels_list
+        and user.telegram_chat_id
+    ):
+        tg_ok = send_telegram(user.telegram_chat_id, text)
+
+    # The email is the primary channel. Telegram is best-effort: a Telegram
+    # failure is logged but must not fail the email digest.
+    ok = email_ok
+
+    digest = EmailDigest(
+        user_id=user.id,
+        subject=subject,
+        body=text,
+        status="sent" if ok else "failed",
+        sent_at=utcnow_naive() if ok else None,
+    )
+    session.add(digest)
+    session.commit()
+    summary["sent" if ok else "failed"] += 1
+    logger.info("Digest %s for user %s", digest.status, user.id)
+    return ok
+
+
 def run_digest(db: Session | None = None) -> dict:
     """Run the daily digest for every active user. Returns a summary dict."""
     own_session = db is None
@@ -190,45 +237,21 @@ def run_digest(db: Session | None = None) -> dict:
                 summary["skipped_already"] += 1
                 continue
 
-            recommendation = rec_service.valid_latest(session, user_id)
-            if recommendation is None:
-                recommendation = rec_service.run(
-                    session, user, source="daily_digest", trigger="digest", force=True
+            try:
+                handled = _deliver_for_user(session, user, summary)
+            except Exception:  # noqa: BLE001 - one user must not break the batch
+                logger.exception("Digest failed for user %s", user_id)
+                session.rollback()
+                session.add(
+                    EmailDigest(
+                        user_id=user_id,
+                        subject="",
+                        body="",
+                        status="failed",
+                    )
                 )
-            if recommendation is None:
-                summary["no_recommendation"] += 1
-                continue
-
-            products = rec_service.with_products(session, recommendation)
-            if not products:
-                summary["no_recommendation"] += 1
-                continue
-
-            subject, html, text = render_digest(recommendation, products)
-
-            email_ok = True
-            if "email" in settings.notification_channels_list:
-                email_ok = send_email(user.email, subject, html, text)
-
-            tg_ok = None
-            if (
-                "telegram" in settings.notification_channels_list
-                and user.telegram_chat_id
-            ):
-                tg_ok = send_telegram(user.telegram_chat_id, text)
-
-            ok = email_ok and (tg_ok is not False)
-            digest = EmailDigest(
-                user_id=user_id,
-                subject=subject,
-                body=text,
-                status="sent" if ok else "failed",
-                sent_at=utcnow_naive() if ok else None,
-            )
-            session.add(digest)
-            session.commit()
-            summary["sent" if ok else "failed"] += 1
-            logger.info("Digest %s for user %s", digest.status, user_id)
+                session.commit()
+                summary["failed"] += 1
 
         return summary
     finally:

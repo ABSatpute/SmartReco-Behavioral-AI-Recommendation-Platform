@@ -248,3 +248,95 @@ def test_admin_digest_test_endpoint(client, vector_store):
         assert db.query(EmailDigest).filter(EmailDigest.user_id == admin_id).count() == 1
     finally:
         db.close()
+
+
+def test_digest_telegram_only_when_chat_id_present(client, vector_store, monkeypatch):
+    _seed_catalog()
+    user = _register_user(client)
+    db = SessionLocal()
+    try:
+        row = db.get(User, user.id)
+        row.telegram_chat_id = "12345"
+        db.commit()
+    finally:
+        db.close()
+    _add_events(user.id, count=3)
+
+    telegram_calls: list[str] = []
+    monkeypatch.setattr(digest_service, "send_email", lambda *args: True)
+    monkeypatch.setattr(
+        digest_service, "send_telegram", lambda chat_id, text: telegram_calls.append(chat_id) or True
+    )
+
+    digest_service.run_digest()
+    assert telegram_calls == ["12345"]
+
+def test_digest_skips_telegram_without_chat_id(client, vector_store, monkeypatch):
+    _seed_catalog()
+    user = _register_user(client)
+    _add_events(user.id, count=3)
+
+    telegram_calls: list[str] = []
+    monkeypatch.setattr(digest_service, "send_email", lambda *args: True)
+    monkeypatch.setattr(
+        digest_service, "send_telegram", lambda chat_id, text: telegram_calls.append(chat_id) or True
+    )
+
+    digest_service.run_digest()
+    assert telegram_calls == []
+
+
+def test_digest_email_sent_even_if_telegram_fails(client, vector_store, monkeypatch):
+    _seed_catalog()
+    user = _register_user(client)
+    db = SessionLocal()
+    try:
+        row = db.get(User, user.id)
+        row.telegram_chat_id = "12345"
+        db.commit()
+    finally:
+        db.close()
+    _add_events(user.id, count=3)
+
+    telegram_calls: list[str] = []
+    monkeypatch.setattr(digest_service, "send_email", lambda *args: True)
+    monkeypatch.setattr(
+        digest_service, "send_telegram", lambda chat_id, text: telegram_calls.append(chat_id) or False
+    )
+    summary = digest_service.run_digest()
+    assert telegram_calls == ["12345"]
+    assert summary["sent"] == 1
+    assert summary["failed"] == 0
+
+    db = SessionLocal()
+    try:
+        digest = db.query(EmailDigest).filter(EmailDigest.user_id == user.id).first()
+        assert digest.status == "sent"
+    finally:
+        db.close()
+
+
+def test_cron_digest_requires_secret(client):
+    resp = client.get("/cron/digest")
+    assert resp.status_code == 403
+    resp = client.get("/cron/digest?token=wrong")
+    assert resp.status_code == 403
+
+
+def test_cron_digest_with_secret_runs(client, vector_store, monkeypatch):
+    from app.config import settings as app_settings
+
+    _seed_catalog()
+    user = _register_user(client)
+    _add_events(user.id, count=3)
+    monkeypatch.setattr(digest_service, "send_email", lambda *args: True)
+
+    resp = client.get(f"/cron/digest?token={app_settings.cron_secret}")
+    assert resp.status_code == 200
+    assert resp.json()["sent"] == 1
+
+    db = SessionLocal()
+    try:
+        assert db.query(EmailDigest).filter(EmailDigest.user_id == user.id).count() == 1
+    finally:
+        db.close()

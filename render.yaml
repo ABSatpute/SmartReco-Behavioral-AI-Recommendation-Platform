@@ -32,12 +32,22 @@ services:
       - key: NOTIFICATION_CHANNELS
         value: email,telegram
       - key: EMAIL_BACKEND
-        value: resend
-      - key: RESEND_API_KEY
+        value: smtp
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        value: ab31satpute@gmail.com
+      - key: SMTP_PASSWORD
         sync: false
       - key: EMAIL_FROM
+        value: ab31satpute@gmail.com
+      - key: RESEND_API_KEY
         sync: false
       - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: CRON_SECRET
         sync: false
       - key: LANGSMITH_API_KEY
         sync: false

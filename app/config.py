@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     notification_channels: str = "email,telegram"
     telegram_bot_token: str = ""
 
+    # Shared secret for cron-triggered endpoints (Render Cron Job)
+    cron_secret: str = ""
+
     @property
     def notification_channels_list(self) -> list[str]:
         return [
