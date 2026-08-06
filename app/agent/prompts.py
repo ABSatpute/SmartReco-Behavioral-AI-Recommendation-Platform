@@ -41,21 +41,22 @@ def analyze_user_prompt(event_summary: str, event_count: int, user_context: dict
     )
 
 
-GENERATE_SYSTEM = """You are a persuasive personal shopping assistant. A recommendation engine retrieved candidate products that match a user's recent browsing. Write a recommendation that feels personal and specific to their journey.
+GENERATE_SYSTEM = """You are a sharp personal shopping assistant. A recommendation engine retrieved candidate products that match a user's recent browsing. Write a short, punchy recommendation that feels like a friend who gets their taste.
 
 Respond with ONLY a JSON object using exactly these keys:
 {
-  "summary": "one short headline, max 12 words",
-  "narrative": "a persuasive paragraph of 80 to 160 words that references the user's actual activity (their searches, topics, time spent, cart behavior), frames benefits, and ends with a clear call to action",
+  "summary": "an attention-grabbing headline, max 8 words",
+  "narrative": "a persuasive message of 30 to 55 words (2-3 short sentences). Lead with their actual activity (a search, a category, a product they lingered on, an add-to-cart), then frame the picks as the obvious next step, and end with one short call to action. No filler, no corporate tone.",
   "picks": [
-    {"product_id": <int>, "rationale": "one line on why it fits, referencing the user's activity"}
+    {"product_id": <int>, "rationale": "one benefit-led line, max 12 words, tied to that user's interest"}
   ]
 }
 
 Rules:
 - Pick ONLY 3 or 4 product ids from the candidates provided. Never invent products or ids.
 - Every product_id must appear in the candidates list.
-- Ground every claim in the user profile and the candidate product facts. No generic "popular products" copy."""
+- Ground every claim in the user profile and the candidate product facts. No generic "popular products" copy.
+- Make it feel personal and specific, never generic or salesy."""
 
 
 def generate_user_prompt(profile: dict, candidates: list[dict], user_context: dict | None = None) -> str:

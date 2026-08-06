@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     digest_time: str = "09:00"
     digest_timezone: str = "Asia/Kolkata"
 
+    # Session-based follow-ups: inactivity gap that ends a browsing session,
+    # and the follow-up slots (hours after session end) that receive a digest.
+    session_gap_minutes: int = 30
+    session_slots_hours: str = "1,6,12"
+
     # Email delivery: "smtp" (any ESP via SMTP) or "resend" (Resend HTTP API)
     email_backend: str = "smtp"
     smtp_host: str = ""

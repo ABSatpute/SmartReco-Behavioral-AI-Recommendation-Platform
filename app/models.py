@@ -107,6 +107,49 @@ class CartItem(Base):
     )
 
 
+class BrowseSession(Base):
+    """A single browsing session for a user (logged-in) or a guest session_key.
+
+    A new BrowseSession starts on the first event after SESSION_GAP_MINUTES of
+    inactivity. ``last_seen_at`` refreshes on every ingested batch; the session
+    is considered "ended" once no events arrive for the gap. The agent uses the
+    events of a single BrowseSession to build "what they did last" picks.
+    """
+    __tablename__ = "browse_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    session_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class SessionDigest(Base):
+    """Tracks the 1h/6h/12h follow-up sends for a single BrowseSession."""
+    __tablename__ = "session_digests"
+    __table_args__ = (
+        UniqueConstraint("browse_session_id", "slot", name="uq_session_digest_slot"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    browse_session_id: Mapped[int] = mapped_column(
+        ForeignKey("browse_sessions.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    slot: Mapped[str] = mapped_column(String(8))  # "1h" | "6h" | "12h"
+    recommendation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("recommendations.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default="sent")  # sent | skipped | failed
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+
+
 class UserEvent(Base):
     __tablename__ = "user_events"
 
@@ -116,6 +159,9 @@ class UserEvent(Base):
     )
     session_id: Mapped[int | None] = mapped_column(
         ForeignKey("sessions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    browse_session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("browse_sessions.id", ondelete="SET NULL"), nullable=True, index=True
     )
     event_type: Mapped[str] = mapped_column(String(50), index=True)
     entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)

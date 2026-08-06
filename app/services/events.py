@@ -30,6 +30,28 @@ def recent(db: Session, user_id: int, since: datetime | None = None, limit: int 
     return q.order_by(UserEvent.occurred_at.desc()).limit(limit).all()
 
 
+def for_browse_session(db: Session, browse_session_id: int, limit: int = 100) -> list[UserEvent]:
+    """All tracked activity from a single browsing session (oldest first)."""
+    return (
+        db.query(UserEvent)
+        .filter(UserEvent.browse_session_id == browse_session_id)
+        .order_by(UserEvent.occurred_at.asc())
+        .limit(limit)
+        .all()
+    )
+
+
+def session_meaningful_count(db: Session, browse_session_id: int) -> int:
+    return (
+        db.query(UserEvent)
+        .filter(
+            UserEvent.browse_session_id == browse_session_id,
+            UserEvent.event_type.in_(MEANINGFUL_TYPES),
+        )
+        .count()
+    )
+
+
 def serialize(event: UserEvent) -> dict:
     payload = dict(event.payload or {})
     return {

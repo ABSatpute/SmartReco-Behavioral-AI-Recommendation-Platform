@@ -31,3 +31,12 @@ def cron_digest(
     db: Session = Depends(get_db),
 ):
     return digest_service.run_digest(db)
+
+
+@router.get("/sessions")
+def cron_session_digests(
+    request: Request,
+    _: None = Depends(_authorized),
+    db: Session = Depends(get_db),
+):
+    return digest_service.run_session_digests(db)

@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config import settings
-from app.services.digest import run_digest
+from app.services.digest import run_digest, run_session_digests
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,14 @@ def _digest_job() -> None:
         logger.exception("Digest job failed")
 
 
+def _session_job() -> None:
+    try:
+        result = run_session_digests()
+        logger.info("Session-digest sweep complete: %s", result)
+    except Exception:  # noqa: BLE001 - a scheduler job must never crash silently
+        logger.exception("Session-digest sweep failed")
+
+
 def start() -> None:
     if scheduler.running:
         return
@@ -36,8 +44,14 @@ def start() -> None:
         id="digest",
         replace_existing=True,
     )
+    scheduler.add_job(
+        _session_job,
+        IntervalTrigger(minutes=15),
+        id="session_digests",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("Scheduler started: digest every 30 minutes (%s)", settings.digest_timezone)
+    logger.info("Scheduler started: digest + session digests every 15-30 minutes")
 
 
 def shutdown() -> None:

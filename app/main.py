@@ -25,10 +25,12 @@ def _startup_digest_catchup() -> None:
     that follows a missed scheduled slot still delivers within seconds."""
     time.sleep(20)
     try:
-        from app.services.digest import run_digest
+        from app.services.digest import run_digest, run_session_digests
 
         result = run_digest()
         logger.info("Startup digest catch-up: %s", result)
+        result = run_session_digests()
+        logger.info("Startup session-digest catch-up: %s", result)
     except Exception:  # noqa: BLE001 - never block boot on digest work
         logger.exception("Startup digest catch-up failed")
 

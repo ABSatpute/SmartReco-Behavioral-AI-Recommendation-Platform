@@ -310,8 +310,8 @@ def generate(state: dict) -> dict:
         result = {
             "summary": "Top picks for you",
             "narrative": (
-                f"Based on your interest in {theme}, here are the best matches we found "
-                f"in the catalog. Take a look before your next session ends."
+                f"These match what you were just exploring in {theme}. "
+                f"Quick look — they won't stay this well-matched for long."
             ),
             "picks": [
                 {"product_id": c["id"], "rationale": FALLBACK_RATIONALE.format(theme=theme)}

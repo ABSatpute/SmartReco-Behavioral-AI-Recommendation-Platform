@@ -76,10 +76,11 @@ def should_run(db: Session, user_id: int, source: str = "auto", force: bool = Fa
     return False
 
 
-def _trigger_reason(db: Session, user_id: int) -> str:
-    previous = last_run(db, user_id)
-    since = previous.created_at if previous else datetime.min
-    events = events_service.recent(db, user_id, since=since, limit=100)
+def _trigger_reason(db: Session, user_id: int, events: list | None = None) -> str:
+    if events is None:
+        previous = last_run(db, user_id)
+        since = previous.created_at if previous else datetime.min
+        events = events_service.recent(db, user_id, since=since, limit=100)
     counts: dict[str, int] = {}
     for event in events:
         counts[event.event_type] = counts.get(event.event_type, 0) + 1
@@ -102,19 +103,28 @@ def run(
     source: str = "auto",
     trigger: str | None = None,
     force: bool = False,
+    browse_session_id: int | None = None,
 ) -> Recommendation | None:
-    """Execute the LangGraph agent workflow and persist results + trace."""
+    """Execute the LangGraph agent workflow and persist results + trace.
+
+    When ``browse_session_id`` is given, the agent reasons only about that
+    browsing session (fresh-intent recommendations); otherwise it uses the
+    user's recent activity.
+    """
     trigger = trigger or ("manual" if source == "manual" else "event_threshold")
-    previous = last_run(db, user.id)
-    since = previous.created_at if previous else None
-    events = events_service.recent(db, user.id, since=since, limit=100)
+    if browse_session_id is not None:
+        events = events_service.for_browse_session(db, browse_session_id, limit=100)
+    else:
+        previous = last_run(db, user.id)
+        since = previous.created_at if previous else None
+        events = events_service.recent(db, user.id, since=since, limit=100)
 
     state = {
         "user_id": user.id,
         "trace_id": current_trace_id() or uuid.uuid4().hex[:16],
         "trigger": trigger,
         "source": source,
-        "trigger_reason": _trigger_reason(db, user.id),
+        "trigger_reason": _trigger_reason(db, user.id, events),
         "started_at": time.monotonic(),
         "events": [events_service.serialize(e) for e in events],
         "event_summary": events_service.summary_text(events),

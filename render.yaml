@@ -49,5 +49,9 @@ services:
         sync: false
       - key: CRON_SECRET
         sync: false
+      - key: SESSION_GAP_MINUTES
+        value: "30"
+      - key: SESSION_SLOTS_HOURS
+        value: "1,6,12"
       - key: LANGSMITH_API_KEY
         sync: false

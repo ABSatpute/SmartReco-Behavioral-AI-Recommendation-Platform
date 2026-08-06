@@ -8,6 +8,7 @@ from app.models import Product, Session as DBSession
 from app.models import User, UserEvent
 from app.schemas import CartAddIn, CartRemoveIn, CartUpdateIn, EventBatchIn, RecommendationOut
 from app.services import auth as auth_service
+from app.services import browse_sessions as browse_service
 from app.services import cart as cart_service
 from app.services import digest as digest_service
 from app.services import recommendations as rec_service
@@ -136,6 +137,7 @@ def ingest_events(
 ):
     session = ensure_session(request, db)
     new_session = getattr(request.state, "new_session", None)
+    browse = browse_service.touch_or_create(db, session.user_id, session.session_key)
 
     stored = 0
     for event in batch.events:
@@ -145,6 +147,7 @@ def ingest_events(
             UserEvent(
                 user_id=session.user_id,
                 session_id=session.id,
+                browse_session_id=browse.id,
                 event_type=event.event_type,
                 entity_type=event.entity_type,
                 entity_id=event.entity_id,
