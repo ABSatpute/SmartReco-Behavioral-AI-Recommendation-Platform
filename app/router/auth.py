@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -35,7 +37,11 @@ def set_session_cookie(response: RedirectResponse, session) -> None:
 def register_form(request: Request, user: User | None = Depends(current_session)):
     if user and user.user_id:
         return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse(request, "auth/register.html", {"error": None})
+    return templates.TemplateResponse(request, "auth/register.html", {"error": None, "errors": None, "form": None})
+
+
+def _valid_email(value: str) -> bool:
+    return bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value))
 
 
 @router.post("/register")
@@ -45,7 +51,7 @@ def register(
     password: str = Form(...),
     full_name: str = Form(""),
     mobile: str = Form(...),
-    age: int = Form(...),
+    age: str = Form(...),
     gender: str = Form(""),
     telegram_chat_id: str = Form(""),
     db: Session = Depends(get_db),
@@ -57,39 +63,63 @@ def register(
     ):
         return templates.TemplateResponse(
             request, "auth/register.html",
-            {"error": "Too many attempts from this address. Please try again in 15 minutes."},
+            {"error": "Too many attempts from this address. Please try again in 15 minutes.",
+             "errors": None, "form": None},
             status_code=429,
         )
+
     email = email.strip().lower()
+    full_name = full_name.strip()
+    mobile = mobile.strip()
+    gender = gender.strip()
+    telegram_chat_id = telegram_chat_id.strip()
+    form = {
+        "email": email,
+        "full_name": full_name,
+        "mobile": mobile,
+        "age": age.strip(),
+        "gender": gender,
+        "telegram_chat_id": telegram_chat_id,
+    }
+
+    errors: dict[str, str] = {}
+    if len(full_name) < 2:
+        errors["full_name"] = "Please enter your full name."
+    if not _valid_email(email):
+        errors["email"] = "Please enter a valid email address."
+    elif auth_service.get_user_by_email(db, email):
+        errors["email"] = "An account with this email already exists."
+    digits_only = re.sub(r"[^\d]", "", mobile)
+    if not (7 <= len(digits_only) <= 15):
+        errors["mobile"] = "Enter a valid mobile number (7–15 digits)."
+    try:
+        age_val = int(age)
+    except (TypeError, ValueError):
+        errors["age"] = "Please enter a valid age."
+    else:
+        if not (1 <= age_val <= 119):
+            errors["age"] = "Please enter an age between 1 and 119."
+    if not gender:
+        errors["gender"] = "Please select a gender."
     if len(password) < 8:
+        errors["password"] = "Password must be at least 8 characters."
+
+    if errors:
         return templates.TemplateResponse(
-            request, "auth/register.html", {"error": "Password must be at least 8 characters."},
+            request, "auth/register.html",
+            {"error": next(iter(errors.values())), "errors": errors, "form": form},
             status_code=400,
         )
-    if auth_service.get_user_by_email(db, email):
-        return templates.TemplateResponse(
-            request, "auth/register.html", {"error": "An account with this email already exists."},
-            status_code=400,
-        )
-    if not mobile.strip():
-        return templates.TemplateResponse(
-            request, "auth/register.html", {"error": "Mobile number is required."},
-            status_code=400,
-        )
-    if not (0 < age < 120):
-        return templates.TemplateResponse(
-            request, "auth/register.html", {"error": "Please enter a valid age."},
-            status_code=400,
-        )
+
     user = User(
         email=email,
         password_hash=auth_service.hash_password(password),
-        full_name=full_name.strip(),
+        full_name=full_name,
         role="user",
-        mobile=mobile.strip(),
-        age=age,
-        gender=gender.strip() or None,
-        telegram_chat_id=telegram_chat_id.strip() or None,
+        mobile=mobile,
+        age=age_val,
+        gender=gender or None,
+        telegram_chat_id=telegram_chat_id or None,
     )
     db.add(user)
     db.commit()
@@ -113,7 +143,7 @@ def register(
 def login_form(request: Request, session=Depends(current_session)):
     if session and session.user_id:
         return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse(request, "auth/login.html", {"error": None})
+    return templates.TemplateResponse(request, "auth/login.html", {"error": None, "errors": None, "form": None})
 
 
 @router.post("/login")
@@ -130,13 +160,16 @@ def login(
     ):
         return templates.TemplateResponse(
             request, "auth/login.html",
-            {"error": "Too many attempts from this address. Please try again in 15 minutes."},
+            {"error": "Too many attempts from this address. Please try again in 15 minutes.",
+             "errors": None, "form": {"email": email.strip()}},
             status_code=429,
         )
-    user = auth_service.authenticate_user(db, email, password)
+    user = auth_service.authenticate_user(db, email.strip(), password)
     if user is None:
         return templates.TemplateResponse(
-            request, "auth/login.html", {"error": "Invalid email or password."},
+            request, "auth/login.html",
+            {"error": "Invalid email or password.",
+             "errors": None, "form": {"email": email.strip()}},
             status_code=400,
         )
     session = auth_service.create_session(db, user)

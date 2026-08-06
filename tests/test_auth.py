@@ -31,6 +31,7 @@ def test_register_duplicate_email(client):
     payload = {
         "email": "dup@example.com",
         "password": "supersecret",
+        "full_name": "Dup User",
         "mobile": "+91 90000 00002",
         "age": "30",
         "gender": "male",
@@ -45,6 +46,7 @@ def test_register_short_password(client):
         data={
             "email": "short@example.com",
             "password": "short",
+            "full_name": "Short User",
             "mobile": "+91 90000 00003",
             "age": "25",
             "gender": "female",
@@ -59,6 +61,7 @@ def test_login_success_and_session(client):
         data={
             "email": "bob@example.com",
             "password": "supersecret",
+            "full_name": "Bob",
             "mobile": "+91 90000 00004",
             "age": "32",
             "gender": "male",
@@ -99,6 +102,7 @@ def test_flash_set_on_logout(client):
         data={
             "email": "logout@example.com",
             "password": "supersecret",
+            "full_name": "Logout",
             "mobile": "+91 90000 00008",
             "age": "31",
             "gender": "female",
@@ -116,6 +120,7 @@ def test_login_wrong_password(client):
         data={
             "email": "carol@example.com",
             "password": "supersecret",
+            "full_name": "Carol",
             "mobile": "+91 90000 00005",
             "age": "27",
             "gender": "female",

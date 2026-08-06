@@ -1,46 +1,68 @@
-{% extends "base.html" %}
+{% extends "auth_base.html" %}
 
 {% block title %}Sign up · SmartReco{% endblock %}
+{% block auth_heading %}Create your account{% endblock %}
+{% block auth_sub %}Join SmartReco for personalised recommendations.{% endblock %}
 
-{% block content %}
-<h1>Create your account</h1>
-{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
-<form method="post" action="/auth/register" class="form">
-  <div class="form-field">
-    <label for="full_name">Full name</label>
-    <input type="text" id="full_name" name="full_name" maxlength="255">
+{% block auth_content %}
+<form method="post" action="/auth/register" class="auth-form" novalidate data-auth-form>
+  <div class="auth-field {% if errors and errors.full_name %}has-error{% endif %}" data-field>
+    <label for="full_name">Full name<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="text" id="full_name" name="full_name" required autocomplete="name" maxlength="255"
+           placeholder="e.g. Priya Sharma" value="{{ form.full_name or '' }}" aria-describedby="full_name-error">
+    <p class="auth-field-error" id="full_name-error" role="alert">{% if errors and errors.full_name %}{{ errors.full_name }}{% endif %}</p>
   </div>
-  <div class="form-field">
-    <label for="email">Email</label>
-    <input type="email" id="email" name="email" required autofocus>
+
+  <div class="auth-field {% if errors and errors.email %}has-error{% endif %}" data-field>
+    <label for="email">Email<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="email" id="email" name="email" required autocomplete="email" inputmode="email"
+           placeholder="you@example.com" value="{{ form.email or '' }}" aria-describedby="email-error">
+    <p class="auth-field-error" id="email-error" role="alert">{% if errors and errors.email %}{{ errors.email }}{% endif %}</p>
   </div>
-  <div class="form-field">
-    <label for="mobile">Mobile number</label>
-    <input type="tel" id="mobile" name="mobile" required placeholder="e.g. +91 98765 43210">
+
+  <div class="auth-field {% if errors and errors.mobile %}has-error{% endif %}" data-field>
+    <label for="mobile">Mobile number<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="tel" id="mobile" name="mobile" required autocomplete="tel" inputmode="tel"
+           placeholder="e.g. +91 98765 43210" value="{{ form.mobile or '' }}" aria-describedby="mobile-error">
+    <p class="auth-field-error" id="mobile-error" role="alert">{% if errors and errors.mobile %}{{ errors.mobile }}{% endif %}</p>
   </div>
-  <div class="form-field">
-    <label for="age">Age</label>
-    <input type="number" id="age" name="age" min="1" max="119" required>
+
+  <div class="auth-field {% if errors and errors.age %}has-error{% endif %}" data-field>
+    <label for="age">Age<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="number" id="age" name="age" required inputmode="numeric" min="1" max="119"
+           placeholder="e.g. 28" value="{{ form.age or '' }}" aria-describedby="age-error">
+    <p class="auth-field-error" id="age-error" role="alert">{% if errors and errors.age %}{{ errors.age }}{% endif %}</p>
   </div>
-  <div class="form-field">
-    <label for="gender">Gender</label>
-    <select id="gender" name="gender" required>
-      <option value="">Select…</option>
-      <option value="male">Male</option>
-      <option value="female">Female</option>
-      <option value="non-binary">Non-binary</option>
-      <option value="prefer not to say">Prefer not to say</option>
+
+  <div class="auth-field {% if errors and errors.gender %}has-error{% endif %}" data-field>
+    <label for="gender">Gender<span class="auth-req" aria-hidden="true"> *</span></label>
+    <select id="gender" name="gender" required aria-describedby="gender-error">
+      <option value="" {% if not form.gender %}selected{% endif %}>Select…</option>
+      {% for g in ["male", "female", "non-binary", "prefer not to say"] %}
+        <option value="{{ g }}" {% if form.gender == g %}selected{% endif %}>{{ g | capitalize }}</option>
+      {% endfor %}
     </select>
+    <p class="auth-field-error" id="gender-error" role="alert">{% if errors and errors.gender %}{{ errors.gender }}{% endif %}</p>
   </div>
-  <div class="form-field">
-    <label for="password">Password (min 8 characters)</label>
-    <input type="password" id="password" name="password" minlength="8" required>
+
+  <div class="auth-field {% if errors and errors.password %}has-error{% endif %}" data-field>
+    <label for="password">Password<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8"
+           placeholder="At least 8 characters" aria-describedby="password-error password-hint">
+    <p class="auth-field-error" id="password-error" role="alert">{% if errors and errors.password %}{{ errors.password }}{% endif %}</p>
   </div>
-  <div class="form-field">
-    <label for="telegram_chat_id">Telegram chat ID <span class="muted">(optional — get it by messaging your bot)</span></label>
-    <input type="text" id="telegram_chat_id" name="telegram_chat_id" placeholder="e.g. 884296262">
+
+  <div class="auth-field {% if errors and errors.telegram_chat_id %}has-error{% endif %}" data-field>
+    <label for="telegram_chat_id">Telegram chat ID<span class="auth-opt">Optional</span></label>
+    <input type="text" id="telegram_chat_id" name="telegram_chat_id" autocomplete="off"
+           placeholder="e.g. 884296262" value="{{ form.telegram_chat_id or '' }}" aria-describedby="telegram-error">
+    <p class="auth-field-hint" id="telegram-hint">Receive daily digests on Telegram — message <a href="https://t.me/smartreco_bot" target="_blank" rel="noopener">our bot</a> once to get your ID.</p>
+    <p class="auth-field-error" id="telegram-error" role="alert">{% if errors and errors.telegram_chat_id %}{{ errors.telegram_chat_id }}{% endif %}</p>
   </div>
-  <button type="submit" class="btn btn-primary">Sign up</button>
+
+  <button type="submit" class="btn btn-primary auth-submit">Create account</button>
 </form>
-<p>Already have an account? <a href="/auth/login">Log in</a></p>
+
+<div class="auth-divider">Already have an account?</div>
+<p class="auth-switch"><a href="/auth/login">Log in</a></p>
 {% endblock %}

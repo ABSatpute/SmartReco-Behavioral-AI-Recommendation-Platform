@@ -61,6 +61,7 @@ def test_events_linked_to_user_after_login(client):
         data={
             "email": "alice@example.com",
             "password": "supersecret",
+            "full_name": "Alice",
             "mobile": "+91 90000 00006",
             "age": "26",
             "gender": "female",

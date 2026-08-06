@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SmartReco{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', path='/favicon.ico') }}?v=7">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='/SmartReco_favicon_32.png') }}?v=7">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', path='/SmartReco_favicon_16.png') }}?v=7">
+  <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', path='/SmartReco_favicon_192.png') }}?v=7">
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}?v=2">
+</head>
+<body class="auth-body">
+  <main class="auth-shell">
+    <div class="auth-card">
+      <a class="auth-brand" href="/" aria-label="SmartReco home">
+        <img class="logo-mark-img" src="{{ url_for('static', path='/SmartReco_favicon_192.png') }}" alt="" width="40" height="40">
+        <span class="logo-text">Smart<span>Reco</span></span>
+      </a>
+      <h1 class="auth-heading">{% block auth_heading %}{% endblock %}</h1>
+      <p class="auth-sub">{% block auth_sub %}{% endblock %}</p>
+
+      {% if error %}
+        <div class="alert alert-error auth-alert" role="alert">{{ error }}</div>
+      {% endif %}
+
+      {% block auth_content %}{% endblock %}
+    </div>
+
+    <p class="auth-back"><a href="/">← Back to store</a></p>
+  </main>
+
+  <script src="{{ url_for('static', path='/js/toast.js') }}"></script>
+  <script src="{{ url_for('static', path='/js/auth.js') }}"></script>
+</body>
+</html>
