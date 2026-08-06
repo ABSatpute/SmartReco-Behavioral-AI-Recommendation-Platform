@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.deps import current_session
+from app.flash import set_flash
 from app.models import User
 from app.services import auth as auth_service
 from app.services import cart as cart_service
@@ -86,6 +87,7 @@ def register(
     )
     if guest_session is not None and guest_session.user_id is None:
         cart_service.merge_guest_into_user(db, user, guest_session.session_key)
+    set_flash(response, f"Account created. Welcome to SmartReco, {user.full_name or user.email}!")
     return response
 
 
@@ -118,6 +120,7 @@ def login(
     )
     if guest_session is not None and guest_session.user_id is None:
         cart_service.merge_guest_into_user(db, user, guest_session.session_key)
+    set_flash(response, f"Welcome back, {user.full_name or user.email}!", "success")
     return response
 
 
@@ -128,4 +131,5 @@ def logout(request: Request, session=Depends(current_session), db: Session = Dep
         db.commit()
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie(settings.session_cookie)
+    set_flash(response, "You've been logged out.", "info")
     return response

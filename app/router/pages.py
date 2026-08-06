@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import current_session, current_user
+from app.flash import set_flash
 from app.models import Product, User
 from app.services import cart as cart_service
 from app.services import products as product_service
@@ -148,4 +149,6 @@ def refresh_recommendations(
     if user is None:
         return RedirectResponse(url="/auth/login", status_code=303)
     rec_service.refresh(db, user)
-    return RedirectResponse(url="/recommendations", status_code=303)
+    response = RedirectResponse(url="/recommendations", status_code=303)
+    set_flash(response, "Your recommendations have been refreshed.")
+    return response

@@ -761,4 +761,7 @@ img { max-width: 100%; }
   max-width: 90vw;
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
+.toast-success { background: var(--c-success-strong); }
+.toast-error { background: var(--c-danger-strong); }
+.toast-info { background: var(--c-secondary-strong); }
 .small { font-size: 0.82rem; }

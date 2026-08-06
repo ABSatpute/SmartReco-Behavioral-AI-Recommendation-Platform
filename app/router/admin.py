@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require_admin
+from app.flash import set_flash
 from app.models import AgentRun, Product, User, UserEvent
 from app.observability import current_trace_id, langsmith_enabled
 from app.services import products as product_service
@@ -90,8 +91,9 @@ def create_product(
             {"current_user": user, "product": None, "error": "Price must be a number."},
             status_code=400,
         )
-    return RedirectResponse(url=f"/admin/products/{product.id}/edit", status_code=303)
-
+    response = RedirectResponse(url=f"/admin/products/{product.id}/edit", status_code=303)
+    set_flash(response, f"Product created: {product.title}")
+    return response
 
 @router.get("/products/{product_id}/edit", response_class=HTMLResponse)
 def edit_product_form(
@@ -145,7 +147,9 @@ def update_product(
             {"current_user": user, "product": product, "error": "Price must be a number."},
             status_code=400,
         )
-    return RedirectResponse(url="/admin/products", status_code=303)
+    response = RedirectResponse(url="/admin/products", status_code=303)
+    set_flash(response, f"Product updated: {product.title}")
+    return response
 
 
 @router.post("/products/{product_id}/delete")
@@ -159,7 +163,9 @@ def delete_product(
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found.")
     product_service.delete_product(db, product)
-    return RedirectResponse(url="/admin/products", status_code=303)
+    response = RedirectResponse(url="/admin/products", status_code=303)
+    set_flash(response, f"Product archived: {product.title}", "info")
+    return response
 
 
 @router.get("/products/{product_id}/restore", response_class=HTMLResponse)
@@ -175,7 +181,9 @@ def restore_product(
     product.is_active = True
     db.commit()
     product_service.sync_product_vector(db, product)
-    return RedirectResponse(url="/admin/products", status_code=303)
+    response = RedirectResponse(url="/admin/products", status_code=303)
+    set_flash(response, f"Product restored: {product.title}", "success")
+    return response
 
 
 @router.get("/observability", response_class=HTMLResponse)

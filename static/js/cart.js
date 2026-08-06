@@ -14,16 +14,18 @@
   }
 
   var toastEl = null;
-  function toast(message) {
+  function toast(message, type) {
+    var fn = (window.SmartRecoToast && window.SmartRecoToast.toast) || null;
+    if (fn) { fn(message, type); return; }
     if (!toastEl) {
       toastEl = document.createElement("div");
       toastEl.className = "toast";
       document.body.appendChild(toastEl);
     }
     toastEl.textContent = message;
-    toastEl.classList.add("show");
+    toastEl.className = "toast toast-" + (type || "success") + " show";
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+    toast._timer = setTimeout(function () { toastEl.classList.remove("show"); }, 3000);
   }
 
   function setBadge(count) {
@@ -42,12 +44,12 @@
       .then(function (data) {
         if (data && data.ok) {
           setBadge(data.count);
-          toast("Added to cart");
+          toast("Item added to cart successfully", "success");
         } else if (data && data.error) {
-          toast(data.error);
+          toast(data.error, "error");
         }
       })
-      .catch(function () { toast("Could not add to cart"); });
+      .catch(function () { toast("Could not add item to cart", "error"); });
   }
 
   function updateQty(productId, delta) {

@@ -73,6 +73,41 @@ def test_login_success_and_session(client):
     )
     assert resp.status_code == 303
     assert "smartreco_session" in resp.headers["set-cookie"]
+    assert "smartreco_flash" in resp.headers["set-cookie"]
+
+
+def test_flash_set_on_register(client):
+    resp = client.post(
+        "/auth/register",
+        data={
+            "email": "flash@example.com",
+            "password": "supersecret",
+            "full_name": "Flash",
+            "mobile": "+91 90000 00007",
+            "age": "29",
+            "gender": "male",
+        },
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert "smartreco_flash" in resp.headers["set-cookie"]
+
+
+def test_flash_set_on_logout(client):
+    client.post(
+        "/auth/register",
+        data={
+            "email": "logout@example.com",
+            "password": "supersecret",
+            "mobile": "+91 90000 00008",
+            "age": "31",
+            "gender": "female",
+        },
+        follow_redirects=False,
+    )
+    resp = client.post("/auth/logout", follow_redirects=False)
+    assert resp.status_code == 303
+    assert "smartreco_flash" in resp.headers["set-cookie"]
 
 
 def test_login_wrong_password(client):
