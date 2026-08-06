@@ -129,7 +129,7 @@ def logout(request: Request, session=Depends(current_session), db: Session = Dep
     if session is not None:
         db.delete(session)
         db.commit()
-    response = RedirectResponse(url="/", status_code=303)
+    response = RedirectResponse(url="/auth/login", status_code=303)
     response.delete_cookie(settings.session_cookie)
     set_flash(response, "You've been logged out.", "info")
     return response
