@@ -136,6 +136,41 @@ def test_search_products(client, vector_store):
     assert results[0].title == "Intro to RAG"
 
 
+def test_search_products_category_filter(client, vector_store):
+    _register_and_make_admin(client)
+    client.post("/admin/products", data=PRODUCT_FORM, follow_redirects=False)
+
+    db = SessionLocal()
+    results = product_service.search_products(db, "rag", category="Data Science")
+    db.close()
+    assert len(results) == 0  # category mismatch
+
+    db = SessionLocal()
+    results = product_service.search_products(db, "rag", category="AI Engineering")
+    db.close()
+    assert len(results) == 1
+
+
+def test_browse_category_without_query(client, vector_store):
+    _register_and_make_admin(client)
+    client.post("/admin/products", data=PRODUCT_FORM, follow_redirects=False)
+    client.post(
+        "/admin/products",
+        data={**PRODUCT_FORM, "title": "Data Pipelines", "category": "Data Engineering"},
+        follow_redirects=False,
+    )
+
+    db = SessionLocal()
+    results = product_service.products_by_category(db, "AI Engineering")
+    db.close()
+    assert [p.title for p in results] == ["Intro to RAG"]
+
+    resp = client.get("/search?category=AI+Engineering")
+    assert resp.status_code == 200
+    assert "Intro to RAG" in resp.text
+    assert "No products found" not in resp.text
+
+
 def test_invalid_price_rejected(client, vector_store):
     _register_and_make_admin(client)
     resp = client.post(

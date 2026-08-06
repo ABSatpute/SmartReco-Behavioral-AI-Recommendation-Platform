@@ -223,6 +223,23 @@ def search_products(db: Session, query: str, category: str | None = None) -> lis
     return base.limit(20).all()
 
 
+def products_by_category(db: Session, category: str, limit: int = 48) -> list[Product]:
+    """Browse a category (no keyword) for the storefront sub-nav and dropdown."""
+    cat = category.strip()
+    if not cat:
+        return []
+    return (
+        db.query(Product)
+        .filter(
+            Product.is_active.is_(True),
+            Product.category.ilike(f"%{cat}%"),
+        )
+        .order_by(Product.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
 def top_categories(db: Session, limit: int = 10) -> list[str]:
     """Most-populated active categories, for the storefront sub-nav."""
     from sqlalchemy import func

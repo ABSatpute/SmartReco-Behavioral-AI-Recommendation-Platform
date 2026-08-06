@@ -17,9 +17,10 @@
   </form>
 </section>
 
-{% if query %}
+{% if query or category %}
   <p class="result-count">
-    {{ products|length }} result{{ 's' if products|length != 1 else '' }} for "{{ query }}"
+    {{ products|length }} result{{ 's' if products|length != 1 else '' }}
+    {% if query %} for "{{ query }}"{% endif %}
     {% if category %} in "{{ category }}"{% endif %}
   </p>
 {% endif %}
@@ -31,7 +32,7 @@
       {% include "partials/product_card.html" %}
     {% endfor %}
   </div>
-{% elif query %}
+{% elif query or category %}
   <div class="empty-state">
     <h2>No products found</h2>
     <p>Try different keywords or another category.</p>

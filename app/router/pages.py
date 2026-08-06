@@ -82,9 +82,14 @@ def search_page(
     user: User | None = Depends(current_user),
     db: Session = Depends(get_db),
 ):
-    products = (
-        product_service.search_products(db, q, category=category or None) if q else []
-    )
+    q = q.strip()
+    cat = category.strip()
+    if q:
+        products = product_service.search_products(db, q, category=cat or None)
+    elif cat:
+        products = product_service.products_by_category(db, cat)
+    else:
+        products = []
     ctx = _nav_context(request, user, db)
     ctx.update(
         {
