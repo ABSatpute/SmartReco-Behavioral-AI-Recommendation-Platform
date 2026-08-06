@@ -108,9 +108,11 @@ img { max-width: 100%; }
 }
 .logo-mark-img {
   width: 2rem; height: 2rem;
-  border-radius: 8px;
+  border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 1px 4px rgba(15,23,42,.25);
 }
 .logo-text { font-size: 1.2rem; font-weight: 700; letter-spacing: .01em; }
 .logo-text span { color: var(--c-secondary); }
