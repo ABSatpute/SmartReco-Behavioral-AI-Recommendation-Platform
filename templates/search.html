@@ -5,16 +5,6 @@
 {% block content %}
 <section class="search-head">
   <h1>Search</h1>
-  <form method="get" action="/search" class="searchbar searchbar-inline" role="search">
-    <select class="searchbar-cat" name="category" aria-label="Search in category">
-      <option value="">All</option>
-      {% for cat in nav_categories or [] %}
-        <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
-      {% endfor %}
-    </select>
-    <input class="searchbar-input" type="text" name="q" value="{{ query }}" placeholder="Search products" aria-label="Search products">
-    <button class="searchbar-btn" type="submit" aria-label="Search">🔍</button>
-  </form>
 </section>
 
 {% if query or category %}

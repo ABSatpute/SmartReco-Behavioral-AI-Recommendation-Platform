@@ -211,6 +211,60 @@ img { max-width: 100%; }
 .role-pill-admin  { background: var(--c-tertiary-soft); color: var(--c-tertiary-strong); }
 .role-pill-member { background: rgba(255,255,255,.14); color: var(--c-secondary); }
 
+/* Account dropdown (topbar) */
+.account-dropdown { position: relative; }
+.account-dropdown .account {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  border-radius: var(--radius-sm);
+}
+.account-dropdown .account:hover { background: rgba(255,255,255,.08); }
+.account-caret { font-size: 0.7rem; opacity: .8; margin-left: 0.1rem; }
+.account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 0.35rem;
+  display: none;
+  flex-direction: column;
+  z-index: 60;
+}
+.account-menu.open { display: flex; }
+.account-menu-link {
+  text-decoration: none;
+  color: var(--c-text-2);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.account-menu-link:hover { background: var(--c-primary-soft); color: var(--c-primary-active); }
+.account-menu-logout { color: var(--c-danger); }
+.account-menu-logout:hover { background: var(--c-danger-bg); color: var(--c-danger-strong); }
+.account-menu-head {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--c-muted);
+  padding: 0.35rem 0.6rem 0.25rem;
+}
+.account-menu-sep { height: 1px; background: var(--c-border); margin: 0.3rem 0; }
+.account-menu-form { margin: 0; }
+
 /* Navbar */
 .navbar {
   background: var(--c-navbar);

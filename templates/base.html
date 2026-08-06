@@ -40,15 +40,31 @@
           <span class="cart-badge" data-cart-count>0</span>
         </a>
         {% if current_user %}
-          <span class="account">
-            <span class="account-avatar" aria-hidden="true">{{ (current_user.full_name or current_user.email)[0] | upper }}</span>
-            <span class="account-body">
-              <span class="account-greet">Hello, {{ current_user.full_name or current_user.email }}</span>
-              <span class="role-pill role-pill-{{ 'admin' if current_user.role == 'admin' else 'member' }}">
-                {{ 'Admin' if current_user.role == 'admin' else 'Member' }}
+          <div class="account-dropdown" data-account-dd>
+            <button type="button" class="account" data-account-btn aria-haspopup="true" aria-expanded="false">
+              <span class="account-avatar" aria-hidden="true">{{ (current_user.full_name or current_user.email)[0] | upper }}</span>
+              <span class="account-body">
+                <span class="account-greet">Hello, {{ current_user.full_name or current_user.email }}</span>
+                <span class="role-pill role-pill-{{ 'admin' if current_user.role == 'admin' else 'member' }}">
+                  {{ 'Admin' if current_user.role == 'admin' else 'Member' }}
+                </span>
               </span>
-            </span>
-          </span>
+              <span class="account-caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="account-menu" data-account-menu>
+              <a class="account-menu-link" href="/recommendations">My Recommendations</a>
+              <a class="account-menu-link" href="/cart">My Cart</a>
+              {% if current_user.role == 'admin' %}
+                <span class="account-menu-head">Admin</span>
+                <a class="account-menu-link" href="/admin/products">Products</a>
+                <a class="account-menu-link" href="/admin/observability">Observability</a>
+              {% endif %}
+              <div class="account-menu-sep"></div>
+              <form method="post" action="/auth/logout" class="account-menu-form">
+                <button type="submit" class="account-menu-link account-menu-logout">Log out</button>
+              </form>
+            </div>
+          </div>
         {% else %}
           <a class="account" href="/auth/login">
             <span class="account-body">
@@ -97,17 +113,12 @@
             </li>
           {% endif %}
 
-          <li class="nav-right">
-            {% if current_user %}
-              <a class="btn-nav" href="/recommendations">Account</a>
-              <form method="post" action="/auth/logout" class="inline-form">
-                <button type="submit" class="btn-nav btn-nav-primary">Log out</button>
-              </form>
-            {% else %}
+          {% if not current_user %}
+            <li class="nav-right">
               <a class="btn-nav" href="/auth/login">Log in</a>
               <a class="btn-nav btn-nav-primary" href="/auth/register">Sign up</a>
-            {% endif %}
-          </li>
+            </li>
+          {% endif %}
         </ul>
       </div>
     </nav>
@@ -188,6 +199,23 @@
           d.classList.remove('open');
         });
       });
+      // Account dropdown (topbar)
+      const accountDD = document.querySelector('[data-account-dd]');
+      if (accountDD) {
+        const btn = accountDD.querySelector('[data-account-btn]');
+        const menu = accountDD.querySelector('[data-account-menu]');
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const open = menu.classList.toggle('open');
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('click', (e) => {
+          if (!accountDD.contains(e.target)) {
+            menu.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
     })();
   </script>
   {% block scripts %}{% endblock %}
