@@ -258,9 +258,10 @@ def set_telegram(email: str, chat_id: str) -> None:
         db.close()
 
 
-def test_email(to: str, message: str = "SmartReco test email. If you see this, email delivery is live.") -> None:
+def test_email(to: str, message: str | None = None) -> None:
     from app.services.digest import send_email
 
+    message = message or "SmartReco test email. If you see this, email delivery is live."
     html = f"<p>{message}</p>"
     text = message
     ok = send_email(to, "SmartReco: email delivery test", html, text)
