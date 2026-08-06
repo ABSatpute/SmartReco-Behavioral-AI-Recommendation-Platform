@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.deps import require_admin, require_user
-from app.models import Session as DBSession
+from app.models import Product, Session as DBSession
 from app.models import User, UserEvent
-from app.schemas import EventBatchIn, RecommendationOut
+from app.schemas import CartAddIn, CartRemoveIn, CartUpdateIn, EventBatchIn, RecommendationOut
 from app.services import auth as auth_service
+from app.services import cart as cart_service
 from app.services import digest as digest_service
 from app.services import recommendations as rec_service
 
@@ -31,6 +32,99 @@ def ensure_session(request: Request, db: Session) -> DBSession:
         session = auth_service.create_session(db, None)
         request.state.new_session = session
     return session
+
+
+def cart_owner(request: Request, response: Response, db: Session):
+    """Resolve who owns the cart. Logged-in users own a user cart; everyone
+    else owns a guest cart keyed by their anonymous session."""
+    session = auth_service.get_session(db, request.cookies.get(settings.session_cookie))
+    if session is None:
+        session = auth_service.create_session(db, None)
+        request.state.new_session = session
+    if session.user_id is not None:
+        return session.user, None
+    return None, session.session_key
+
+
+def _set_new_session_cookie(response: Response, session: DBSession) -> None:
+    response.set_cookie(
+        key=settings.session_cookie,
+        value=session.session_key,
+        max_age=settings.session_ttl_days * 24 * 60 * 60,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+@router.post("/cart/add")
+def cart_add(
+    payload: CartAddIn,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    user, session_key = cart_owner(request, response, db)
+    if db.get(Product, payload.product_id) is None:
+        return {"ok": False, "error": "Product not found."}
+    count = cart_service.add_item(db, user, session_key, payload.product_id, payload.quantity)
+    if getattr(request.state, "new_session", None) is not None:
+        _set_new_session_cookie(response, request.state.new_session)
+    return {"ok": True, "count": count}
+
+
+@router.post("/cart/update")
+def cart_update(
+    payload: CartUpdateIn,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    user, session_key = cart_owner(request, response, db)
+    count = cart_service.set_quantity(db, user, session_key, payload.product_id, payload.quantity)
+    if getattr(request.state, "new_session", None) is not None:
+        _set_new_session_cookie(response, request.state.new_session)
+    return {"ok": True, "count": count}
+
+
+@router.post("/cart/remove")
+def cart_remove(
+    payload: CartRemoveIn,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    user, session_key = cart_owner(request, response, db)
+    count = cart_service.remove_item(db, user, session_key, payload.product_id)
+    if getattr(request.state, "new_session", None) is not None:
+        _set_new_session_cookie(response, request.state.new_session)
+    return {"ok": True, "count": count}
+
+
+@router.get("/cart")
+def cart_summary(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    user, session_key = cart_owner(request, response, db)
+    cart = cart_service.get_cart(db, user, session_key)
+    if getattr(request.state, "new_session", None) is not None:
+        _set_new_session_cookie(response, request.state.new_session)
+    return {"ok": True, "count": cart["count"], "subtotal": cart["subtotal"]}
+
+
+@router.post("/cart/checkout")
+def cart_checkout(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    user, session_key = cart_owner(request, response, db)
+    cart = cart_service.checkout(db, user, session_key)
+    if getattr(request.state, "new_session", None) is not None:
+        _set_new_session_cookie(response, request.state.new_session)
+    return {"ok": True, "count": cart["count"], "subtotal": cart["subtotal"]}
+
 
 
 @router.post("/events/batch")

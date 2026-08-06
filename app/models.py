@@ -80,6 +80,33 @@ class Product(Base):
     )
 
 
+class CartItem(Base):
+    """A single cart line. Keyed either by user (logged-in) or by guest session.
+
+    For user carts only ``user_id`` is set; for guest carts only ``session_key``
+    is set. The unique constraints rely on Postgres treating NULLs as distinct.
+    """
+    __tablename__ = "cart_items"
+    __table_args__ = (
+        UniqueConstraint("user_id", "product_id", name="uq_cart_user"),
+        UniqueConstraint("session_key", "product_id", name="uq_cart_guest"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    session_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), index=True
+    )
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow_naive, onupdate=utcnow_naive
+    )
+
+
 class UserEvent(Base):
     __tablename__ = "user_events"
 

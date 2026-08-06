@@ -28,6 +28,13 @@
       </form>
 
       <div class="topbar-right">
+        <a class="cart-link" href="/cart" aria-label="Cart">
+          <svg class="cart-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 3h2l.6 2.5M6 8h12l2 9a1.5 1.5 0 0 1-1.5 1.8H8.5A1.5 1.5 0 0 1 7 17.3L6 8Zm0 0L4.6 5.5M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+          </svg>
+          <span class="cart-badge" data-cart-count>0</span>
+        </a>
         {% if current_user %}
           <span class="account">
             <span class="account-avatar" aria-hidden="true">{{ (current_user.full_name or current_user.email)[0] | upper }}</span>
@@ -145,6 +152,7 @@
   </footer>
 
   <script src="{{ url_for('static', path='/js/tracker.js') }}" data-app="{{ request.base_url }}"></script>
+  <script src="{{ url_for('static', path='/js/cart.js') }}" data-app="{{ request.base_url }}"></script>
   <script>
     (function () {
       // Mobile nav toggle

@@ -58,6 +58,20 @@ class EventBatchIn(BaseModel):
     events: list[EventIn] = Field(max_length=100)
 
 
+class CartAddIn(BaseModel):
+    product_id: int
+    quantity: int = Field(default=1, ge=1, le=99)
+
+
+class CartUpdateIn(BaseModel):
+    product_id: int
+    quantity: int = Field(ge=0, le=99)
+
+
+class CartRemoveIn(BaseModel):
+    product_id: int
+
+
 class RecommendationItemOut(BaseModel):
     product_id: int
     rank: int

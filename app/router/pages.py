@@ -5,8 +5,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import current_user
+from app.deps import current_session, current_user
 from app.models import Product, User
+from app.services import cart as cart_service
 from app.services import products as product_service
 from app.services import recommendations as rec_service
 from app.templating import templates
@@ -122,6 +123,20 @@ def recommendations_page(
         }
     )
     return templates.TemplateResponse(request, "recommendations.html", ctx)
+
+
+@router.get("/cart", response_class=HTMLResponse)
+def cart_page(
+    request: Request,
+    session=Depends(current_session),
+    user: User | None = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    session_key = session.session_key if session is not None else None
+    cart = cart_service.get_cart(db, user, session_key)
+    ctx = _nav_context(request, user, db)
+    ctx.update({"current_user": user, "cart": cart, "title": "Cart · SmartReco"})
+    return templates.TemplateResponse(request, "cart.html", ctx)
 
 
 @router.post("/recommendations/refresh")

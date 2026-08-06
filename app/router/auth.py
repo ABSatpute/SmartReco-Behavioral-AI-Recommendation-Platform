@@ -7,6 +7,7 @@ from app.database import get_db
 from app.deps import current_session
 from app.models import User
 from app.services import auth as auth_service
+from app.services import cart as cart_service
 from app.templating import templates
 
 router = APIRouter(prefix="/auth")
@@ -79,6 +80,12 @@ def register(
     session = auth_service.create_session(db, user)
     response = RedirectResponse(url="/", status_code=303)
     set_session_cookie(response, session)
+
+    guest_session = auth_service.get_session(
+        db, request.cookies.get(settings.session_cookie)
+    )
+    if guest_session is not None and guest_session.user_id is None:
+        cart_service.merge_guest_into_user(db, user, guest_session.session_key)
     return response
 
 
@@ -105,6 +112,12 @@ def login(
     session = auth_service.create_session(db, user)
     response = RedirectResponse(url="/", status_code=303)
     set_session_cookie(response, session)
+
+    guest_session = auth_service.get_session(
+        db, request.cookies.get(settings.session_cookie)
+    )
+    if guest_session is not None and guest_session.user_id is None:
+        cart_service.merge_guest_into_user(db, user, guest_session.session_key)
     return response
 
 

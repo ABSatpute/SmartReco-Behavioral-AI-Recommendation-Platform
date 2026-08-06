@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} / Cart{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Your cart</h1>
+  {% if cart.count %}
+    <p class="muted">{{ cart.count }} item{% if cart.count != 1 %}s{% endif %} · ${{ '%.2f'|format(cart.subtotal) }}</p>
+  {% endif %}
+</div>
+
+{% if cart.lines %}
+  <div class="cart-layout">
+    <div class="cart-lines">
+      {% for item in cart.lines %}
+        <div class="cart-line" data-cart-line="{{ item.product_id }}">
+          <div class="cart-line-thumb">
+            {% if item.image_url %}
+              <img src="{{ item.image_url }}" alt="{{ item.title }}">
+            {% endif %}
+          </div>
+          <div class="cart-line-body">
+            <a class="cart-line-title" href="/products/{{ item.slug }}">{{ item.title }}</a>
+            <span class="badge">{{ item.category }}</span>
+            <div class="cart-line-price">
+              <span class="card-price">${{ '%.2f'|format(item.unit_price) }}</span>
+              <span class="muted">each</span>
+            </div>
+          </div>
+          <div class="cart-line-qty">
+            <span class="qty-label">Qty</span>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn" data-cart-change="-1" data-product-id="{{ item.product_id }}"
+                      aria-label="Decrease quantity">−</button>
+              <span class="qty-value" data-qty-value="{{ item.product_id }}">{{ item.quantity }}</span>
+              <button type="button" class="qty-btn" data-cart-change="1" data-product-id="{{ item.product_id }}"
+                      aria-label="Increase quantity">+</button>
+            </div>
+          </div>
+          <div class="cart-line-total">${{ '%.2f'|format(item.line_total) }}</div>
+          <button type="button" class="btn-link cart-remove" data-cart-remove="{{ item.product_id }}">Remove</button>
+        </div>
+      {% endfor %}
+    </div>
+
+    <aside class="cart-summary">
+      <h2>Order summary</h2>
+      <div class="summary-row"><span>Items</span><span data-cart-count-display>{{ cart.count }}</span></div>
+      <div class="summary-row"><span>Subtotal</span><span>${{ '%.2f'|format(cart.subtotal) }}</span></div>
+      <div class="summary-row summary-total"><span>Total</span><span>${{ '%.2f'|format(cart.subtotal) }}</span></div>
+      <button type="button" class="btn btn-primary btn-block" data-cart-checkout>Proceed to checkout →</button>
+      <p class="muted small">Checkout is a demo — no payment is processed.</p>
+      <a class="btn btn-block" href="/">Continue shopping</a>
+    </aside>
+  </div>
+{% else %}
+  <div class="empty-state">
+    <h2>Your cart is empty</h2>
+    <p>Browse the catalog and add a few items to see them here.</p>
+    <a class="btn btn-primary" href="/">Start shopping</a>
+  </div>
+{% endif %}
+{% endblock %}
