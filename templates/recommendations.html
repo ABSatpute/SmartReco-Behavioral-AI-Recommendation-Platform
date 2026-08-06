@@ -2,13 +2,15 @@
 
 {% block title %}My Recommendations · SmartReco{% endblock %}
 
+{% block sidebar %}{% include "partials/account_sidebar.html" %}{% endblock %}
+
 {% block content %}
-<section class="section-head">
+<div class="page-head">
   <h1>Your recommendations</h1>
   <form method="post" action="/recommendations/refresh" class="inline-form">
     <button type="submit" class="btn btn-cart">Refresh recommendations</button>
   </form>
-</section>
+</div>
 
 {% if last_run %}
   <p class="muted">

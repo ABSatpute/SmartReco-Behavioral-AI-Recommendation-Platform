@@ -1,0 +1,22 @@
+<aside class="sidebar" aria-label="Account navigation">
+  <p class="sidebar-title">My account</p>
+  <ul class="sidebar-nav">
+    <li><a class="{% if request.url.path == '/recommendations' %}active{% endif %}" href="/recommendations">My Recommendations</a></li>
+    <li><a href="/">Browse products</a></li>
+  </ul>
+  {% if current_user and current_user.role == 'admin' %}
+    <p class="sidebar-title">Admin</p>
+    <ul class="sidebar-nav">
+      <li><a href="/admin/products">Products</a></li>
+      <li><a href="/admin/observability">Observability</a></li>
+    </ul>
+  {% endif %}
+  <p class="sidebar-title">Session</p>
+  <ul class="sidebar-nav">
+    <li>
+      <form method="post" action="/auth/logout" class="inline-form">
+        <button type="submit" class="btn-link">Log out</button>
+      </form>
+    </li>
+  </ul>
+</aside>
