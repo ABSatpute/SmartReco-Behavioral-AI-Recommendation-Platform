@@ -32,13 +32,6 @@
       </form>
 
       <div class="topbar-right">
-        <a class="cart-link" href="/cart" aria-label="Cart">
-          <svg class="cart-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  d="M3 3h2l.6 2.5M6 8h12l2 9a1.5 1.5 0 0 1-1.5 1.8H8.5A1.5 1.5 0 0 1 7 17.3L6 8Zm0 0L4.6 5.5M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
-          </svg>
-          <span class="cart-badge" data-cart-count>0</span>
-        </a>
         {% if current_user %}
           <div class="account-dropdown" data-account-dd>
             <button type="button" class="account" data-account-btn aria-haspopup="true" aria-expanded="false">
@@ -52,8 +45,7 @@
               <span class="account-caret" aria-hidden="true">▾</span>
             </button>
             <div class="account-menu" data-account-menu>
-              <a class="account-menu-link" href="/recommendations">My Recommendations</a>
-              <a class="account-menu-link" href="/cart">My Cart</a>
+              <a class="account-menu-link" href="/recommendations">My Account</a>
               {% if current_user.role == 'admin' %}
                 <span class="account-menu-head">Admin</span>
                 <a class="account-menu-link" href="/admin/products">Products</a>
@@ -73,6 +65,14 @@
             </span>
           </a>
         {% endif %}
+
+        <a class="cart-link" href="/cart" aria-label="Cart">
+          <svg class="cart-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 3h2l.6 2.5M6 8h12l2 9a1.5 1.5 0 0 1-1.5 1.8H8.5A1.5 1.5 0 0 1 7 17.3L6 8Zm0 0L4.6 5.5M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+          </svg>
+          <span class="cart-badge" data-cart-count>0</span>
+        </a>
       </div>
     </div>
 

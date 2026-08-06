@@ -155,7 +155,7 @@ img { max-width: 100%; }
 }
 .searchbar-btn:hover { background: var(--c-primary-active); }
 
-.topbar-right { margin-left: auto; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.6rem; }
 .cart-link {
   position: relative;
   display: inline-flex;
