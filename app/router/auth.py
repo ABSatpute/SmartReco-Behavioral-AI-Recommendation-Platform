@@ -7,11 +7,17 @@ from app.database import get_db
 from app.deps import current_session
 from app.flash import set_flash
 from app.models import User
+from app.rate_limit import allow as rate_limit_allow
+from app.rate_limit import reset as rate_limit_reset
 from app.services import auth as auth_service
 from app.services import cart as cart_service
 from app.templating import templates
 
 router = APIRouter(prefix="/auth")
+
+
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 
 def set_session_cookie(response: RedirectResponse, session) -> None:
@@ -21,6 +27,7 @@ def set_session_cookie(response: RedirectResponse, session) -> None:
         max_age=settings.session_ttl_days * 24 * 60 * 60,
         httponly=True,
         samesite="lax",
+        secure=settings.app_env == "production",
     )
 
 
@@ -39,10 +46,20 @@ def register(
     full_name: str = Form(""),
     mobile: str = Form(...),
     age: int = Form(...),
-    gender: str = Form(...),
+    gender: str = Form(""),
     telegram_chat_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    if not rate_limit_allow(
+        f"register:{client_ip(request)}",
+        limit=settings.auth_rate_limit,
+        window_seconds=settings.auth_rate_window_seconds,
+    ):
+        return templates.TemplateResponse(
+            request, "auth/register.html",
+            {"error": "Too many attempts from this address. Please try again in 15 minutes."},
+            status_code=429,
+        )
     email = email.strip().lower()
     if len(password) < 8:
         return templates.TemplateResponse(
@@ -88,6 +105,7 @@ def register(
     if guest_session is not None and guest_session.user_id is None:
         cart_service.merge_guest_into_user(db, user, guest_session.session_key)
     set_flash(response, f"Account created. Welcome to SmartReco, {user.full_name or user.email}!")
+    rate_limit_reset(f"register:{client_ip(request)}")
     return response
 
 
@@ -105,6 +123,16 @@ def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    if not rate_limit_allow(
+        client_ip(request),
+        limit=settings.auth_rate_limit,
+        window_seconds=settings.auth_rate_window_seconds,
+    ):
+        return templates.TemplateResponse(
+            request, "auth/login.html",
+            {"error": "Too many attempts from this address. Please try again in 15 minutes."},
+            status_code=429,
+        )
     user = auth_service.authenticate_user(db, email, password)
     if user is None:
         return templates.TemplateResponse(
@@ -121,6 +149,7 @@ def login(
     if guest_session is not None and guest_session.user_id is None:
         cart_service.merge_guest_into_user(db, user, guest_session.session_key)
     set_flash(response, f"Welcome back, {user.full_name or user.email}!", "success")
+    rate_limit_reset(client_ip(request))
     return response
 
 

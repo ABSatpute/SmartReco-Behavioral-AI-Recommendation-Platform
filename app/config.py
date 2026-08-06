@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     session_cookie: str = "smartreco_session"
     session_ttl_days: int = 30
 
+    # Auth hardening: per-IP sliding-window login/register rate limit
+    auth_rate_limit: int = 5
+    auth_rate_window_seconds: int = 900
+
     mesh_base_url: str = "https://api.meshapi.ai/v1"
     mesh_api_key: str = ""
     llm_model: str = "openai/gpt-4o"

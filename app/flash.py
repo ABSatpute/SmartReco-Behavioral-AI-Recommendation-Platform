@@ -8,6 +8,8 @@ import json
 
 from fastapi import Request, Response
 
+from app.config import settings
+
 FLASH_COOKIE = "smartreco_flash"
 FLASH_TTL_SECONDS = 10
 
@@ -23,6 +25,7 @@ def set_flash(response: Response, message: str, type: str = "success") -> None:
         httponly=False,
         samesite="lax",
         path="/",
+        secure=settings.app_env == "production",
     )
 
 
