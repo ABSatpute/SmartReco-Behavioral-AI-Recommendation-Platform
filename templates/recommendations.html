@@ -3,17 +3,18 @@
 {% block title %}My Recommendations · SmartReco{% endblock %}
 
 {% block content %}
-<h1>Your recommendations</h1>
-
-<form method="post" action="/recommendations/refresh" class="inline-form" style="margin-bottom: 1rem;">
-  <button type="submit" class="btn btn-primary">Refresh recommendations</button>
-</form>
+<section class="section-head">
+  <h1>Your recommendations</h1>
+  <form method="post" action="/recommendations/refresh" class="inline-form">
+    <button type="submit" class="btn btn-cart">Refresh recommendations</button>
+  </form>
+</section>
 
 {% if last_run %}
-  <p class="product-muted">
+  <p class="muted">
     Last analyzed {{ last_run.created_at.strftime('%b %d, %H:%M') }} ·
     {% if last_run.error %}status: {{ last_run.error }}{% else %}
-      {{ last_run.llm_calls }} LLM calls, {{ last_run.total_tokens }} tokens, {{ last_run.duration_ms }} ms
+      {{ last_run.llm_calls }} LLM calls · {{ last_run.total_tokens }} tokens · {{ last_run.duration_ms }} ms
     {% endif %}
   </p>
 {% endif %}
@@ -30,38 +31,19 @@
 {% else %}
   <section class="reco-hero">
     {% if recommendation.trigger_reason %}
-      <p class="product-muted">Why now: {{ recommendation.trigger_reason }}</p>
+      <p class="muted">Why now: {{ recommendation.trigger_reason }}</p>
     {% endif %}
     <h2 class="reco-summary">{{ recommendation.summary }}</h2>
-    <div class="reco-narrative">
-      <p>{{ recommendation.narrative }}</p>
-    </div>
+    <div class="reco-narrative">{{ recommendation.narrative }}</div>
   </section>
 
-  <h3>Top picks for you</h3>
-  <div class="product-grid">
+  <h2>Top picks for you</h2>
+  <div class="grid">
     {% for pick in picks %}
       {% set item = pick.item %}
       {% set product = pick.product %}
       {% if product %}
-      <div class="product-card">
-        <a href="/products/{{ product.slug }}" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
-          {% if product.image_url %}
-            <img class="product-img" src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy">
-          {% endif %}
-          <span class="badge badge-rank">#{{ item.rank }}</span>
-          <h3 class="product-title">{{ product.title }}</h3>
-          <span class="product-category">{{ product.category }}</span>
-          {% if product.stars is not none %}
-            <span class="product-rating">★ {{ product.stars }} ({{ product.reviews or 0 }})</span>
-          {% endif %}
-          {% if product.is_best_seller %}<span class="badge badge-best">Best Seller</span>{% endif %}
-          <span class="product-price">${{ product.price }}</span>
-        </a>
-        {% if item.rationale %}
-          <p class="reco-rationale">Why: {{ item.rationale }}</p>
-        {% endif %}
-      </div>
+        {% include "partials/product_card.html" %}
       {% endif %}
     {% endfor %}
   </div>

@@ -3,32 +3,38 @@
 {% block title %}Search · SmartReco{% endblock %}
 
 {% block content %}
-<h1>Search</h1>
-<form method="get" action="/search" class="search-form">
-  <input type="text" name="q" value="{{ query }}" placeholder="Search courses…" class="search-input">
-  <button type="submit" class="btn btn-primary">Search</button>
-</form>
+<section class="search-head">
+  <h1>Search</h1>
+  <form method="get" action="/search" class="searchbar searchbar-inline" role="search">
+    <select class="searchbar-cat" name="category" aria-label="Search in category">
+      <option value="">All</option>
+      {% for cat in nav_categories or [] %}
+        <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+    <input class="searchbar-input" type="text" name="q" value="{{ query }}" placeholder="Search products" aria-label="Search products">
+    <button class="searchbar-btn" type="submit" aria-label="Search">🔍</button>
+  </form>
+</section>
 
 {% if query %}
-  <h2>{{ products|length }} result{{ 's' if products|length != 1 else '' }} for "{{ query }}"</h2>
+  <p class="result-count">
+    {{ products|length }} result{{ 's' if products|length != 1 else '' }} for "{{ query }}"
+    {% if category %} in "{{ category }}"{% endif %}
+  </p>
 {% endif %}
 
-<div class="product-grid">
-  {% for product in products %}
-    <a class="product-card" href="/products/{{ product.slug }}" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
-      {% if product.image_url %}
-        <img class="product-img" src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy">
-      {% endif %}
-      <h3 class="product-title">{{ product.title }}</h3>
-      <span class="product-category">{{ product.category }}</span>
-      {% if product.stars is not none %}
-        <span class="product-rating">★ {{ product.stars }} ({{ product.reviews or 0 }})</span>
-      {% endif %}
-      <p class="product-desc">{{ product.description[:120] }}{% if product.description|length > 120 %}…{% endif %}</p>
-      <span class="product-price">${{ product.price }}</span>
-    </a>
-  {% else %}
-    {% if query %}<p>No products match your search.</p>{% endif %}
-  {% endfor %}
-</div>
+{% if products %}
+  <div class="grid">
+    {% for product in products %}
+      {% set item = none %}
+      {% include "partials/product_card.html" %}
+    {% endfor %}
+  </div>
+{% elif query %}
+  <div class="empty-state">
+    <h2>No products found</h2>
+    <p>Try different keywords or another category.</p>
+  </div>
+{% endif %}
 {% endblock %}

@@ -205,24 +205,37 @@ def list_products(db: Session, include_inactive: bool = False) -> list[Product]:
     return q.order_by(Product.created_at.desc()).all()
 
 
-def search_products(db: Session, query: str) -> list[Product]:
+def search_products(db: Session, query: str, category: str | None = None) -> list[Product]:
     """Catalog-grounded keyword search (used by the search page and as the
     retrieval fallback when embeddings are unavailable)."""
     q = query.strip()
     if not q:
         return []
     like = f"%{q}%"
-    return (
-        db.query(Product)
+    base = db.query(Product).filter(
+        Product.is_active.is_(True),
+        (Product.title.ilike(like))
+        | (Product.description.ilike(like))
+        | (Product.category.ilike(like)),
+    )
+    if category:
+        base = base.filter(Product.category.ilike(f"%{category.strip()}%"))
+    return base.limit(20).all()
+
+
+def top_categories(db: Session, limit: int = 10) -> list[str]:
+    """Most-populated active categories, for the storefront sub-nav."""
+    from sqlalchemy import func
+
+    rows = (
+        db.query(Product.category)
         .filter(Product.is_active.is_(True))
-        .filter(
-            (Product.title.ilike(like))
-            | (Product.description.ilike(like))
-            | (Product.category.ilike(like))
-        )
-        .limit(20)
+        .group_by(Product.category)
+        .order_by(func.count(Product.id).desc())
+        .limit(limit)
         .all()
     )
+    return [r[0] for r in rows]
 
 
 def resync_all(db: Session) -> int:

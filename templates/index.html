@@ -1,30 +1,49 @@
 {% extends "base.html" %}
 
-{% block title %}SmartReco — Products that fit your journey{% endblock %}
+{% block title %}SmartReco — Shop products that fit your journey{% endblock %}
 
 {% block content %}
-<h1>Explore products</h1>
-<p>Browse the catalog. SmartReco learns from what you look at and recommends products tailored to you.</p>
+<section class="hero">
+  <h1>Products that fit <em>your</em> journey</h1>
+  <p>Every search, view and click tunes SmartReco to you. We turn your behavior into
+     persuasive, catalog-grounded recommendations — refreshed as you explore.</p>
+  {% if recommendation %}
+    <div class="hero-reco">
+      <span class="hero-reco-tag">Recommended for you</span>
+      <p class="hero-reco-summary">{{ recommendation.summary }}</p>
+      <a class="btn btn-light" href="/recommendations">See why →</a>
+    </div>
+  {% endif %}
+</section>
 
-{% if products %}
-  <div class="product-grid">
+{% if reco_picks %}
+  <section class="section" aria-label="Recommended for you">
+    <div class="section-head">
+      <h2>Recommended for you</h2>
+      <a class="section-link" href="/recommendations">View all →</a>
+    </div>
+    <div class="carousel">
+      {% for pick in reco_picks %}
+        {% set product = pick.product %}
+        {% if product %}
+          {% set item = pick.item %}
+          {% include "partials/product_card.html" %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="section" aria-label="Shop all products">
+  <div class="section-head">
+    <h2>Shop all products</h2>
+    <span class="section-meta">{{ products|length }} products</span>
+  </div>
+  <div class="grid">
     {% for product in products %}
-      <a class="product-card" href="/products/{{ product.slug }}" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
-        {% if product.image_url %}
-          <img class="product-img" src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy">
-        {% endif %}
-        <h3 class="product-title">{{ product.title }}</h3>
-        <span class="product-category">{{ product.category }}</span>
-        {% if product.stars is not none %}
-          <span class="product-rating">★ {{ product.stars }} ({{ product.reviews or 0 }})</span>
-        {% endif %}
-        {% if product.is_best_seller %}<span class="badge badge-best">Best Seller</span>{% endif %}
-        <p class="product-desc">{{ product.description[:120] }}{% if product.description|length > 120 %}…{% endif %}</p>
-        <span class="product-price">${{ product.price }}</span>
-      </a>
+      {% set item = none %}
+      {% include "partials/product_card.html" %}
     {% endfor %}
   </div>
-{% else %}
-  <p>No products yet. An admin can add products to the catalog.</p>
-{% endif %}
+</section>
 {% endblock %}

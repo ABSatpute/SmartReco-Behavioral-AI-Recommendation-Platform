@@ -4,42 +4,58 @@
 
 {% block content %}
 {% if not product %}
-  <h1>Product not found</h1>
-  <p><a href="/">Back to catalog</a></p>
-{% else %}
-<div class="product-detail" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
-  <div class="detail-layout">
-    {% if product.image_url %}
-      <div class="detail-img">
-        <img src="{{ product.image_url }}" alt="{{ product.title }}">
-      </div>
-    {% endif %}
-    <div class="detail-info">
-      <h1>{{ product.title }}</h1>
-      <span class="product-category">{{ product.category }}</span>
-      {% if product.is_best_seller %}<span class="badge badge-best">Best Seller</span>{% endif %}
-      <p class="product-price">${{ product.price }}</p>
-      {% if product.stars is not none %}
-        <p class="product-rating">★ {{ product.stars }} from {{ product.reviews or 0 }} review{{ 's' if product.reviews != 1 else '' }}</p>
-      {% endif %}
-      {% if product.bought_in_last_month is not none %}
-        <p class="product-muted">{{ product.bought_in_last_month }} bought in the last month</p>
-      {% endif %}
-      {% if product.tags %}
-        <p class="tags">{% for tag in product.tags %}<span class="badge">{{ tag }}</span>{% endfor %}</p>
-      {% endif %}
-      {% if product.description %}
-        <p>{{ product.description }}</p>
-      {% endif %}
-      <div class="detail-actions">
-        <button class="btn btn-primary" data-add-to-cart="{{ product.id }}">Add to cart</button>
-        {% if product.product_url %}
-          <a class="btn" href="{{ product.product_url }}" target="_blank" rel="noopener">View on Amazon</a>
-        {% endif %}
-        <a href="/" class="btn">Back to catalog</a>
-      </div>
-    </div>
+  <div class="empty-state">
+    <h1>Product not found</h1>
+    <p><a class="btn" href="/">Back to catalog</a></p>
   </div>
+{% else %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="/">Home</a>
+  <span>/</span>
+  <a href="/search?category={{ product.category|urlencode }}">{{ product.category }}</a>
+  <span>/</span>
+  <span>{{ product.title }}</span>
+</nav>
+
+<div class="detail product-detail" data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
+  <div class="detail-media">
+    {% if product.image_url %}
+      <img class="detail-img" src="{{ product.image_url }}" alt="{{ product.title }}">
+    {% endif %}
+  </div>
+
+  <div class="detail-main">
+    <h1 class="detail-title">{{ product.title }}</h1>
+    {% include "partials/star_rating.html" %}
+    <div class="detail-price">
+      <span class="card-price">${{ '%.2f'|format(product.price) }}</span>
+      {% if product.bought_in_last_month is not none %}
+        <span class="detail-sold">{{ product.bought_in_last_month }} bought in the last month</span>
+      {% endif %}
+    </div>
+    {% if product.is_best_seller %}<span class="badge badge-best">Best Seller</span>{% endif %}
+    {% if product.tags %}
+      <p class="tags">{% for tag in product.tags %}<span class="badge">{{ tag }}</span>{% endfor %}</p>
+    {% endif %}
+    {% if product.description %}
+      <p class="detail-desc">{{ product.description }}</p>
+    {% endif %}
+  </div>
+
+  <aside class="buybox" aria-label="Purchase options">
+    <div class="buybox-price">
+      <span class="buybox-currency">$</span><span class="buybox-amount">{{ '%.2f'|format(product.price) }}</span>
+    </div>
+    {% if product.stars is not none %}
+      <p class="buybox-rating">In stock · {{ product.stars }} stars from {{ product.reviews or 0 }} ratings</p>
+    {% endif %}
+    <button class="btn btn-cart" data-add-to-cart="{{ product.id }}">Add to cart</button>
+    {% if product.product_url %}
+      <a class="btn btn-buy" href="{{ product.product_url }}" target="_blank" rel="noopener">Buy from retailer →</a>
+    {% endif %}
+    <p class="buybox-note">You'll get personalized picks as you browse.</p>
+    <a class="btn" href="/">Continue shopping</a>
+  </aside>
 </div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,24 @@
+{% set item = item if item is defined else none %}
+<a class="card" href="/products/{{ product.slug }}"
+   data-product-id="{{ product.id }}" data-product-slug="{{ product.slug }}">
+  <div class="card-media">
+    {% if product.image_url %}
+      <img class="card-img" src="{{ product.image_url }}" alt="{{ product.title }}" loading="lazy">
+    {% else %}
+      <div class="card-img card-img-empty" aria-hidden="true">SmartReco</div>
+    {% endif %}
+    {% if item %}
+      <span class="badge badge-rank">#{{ item.rank }}</span>
+    {% elif product.is_best_seller %}
+      <span class="badge badge-best">Best Seller</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <h3 class="card-title">{{ product.title }}</h3>
+    {% include "partials/star_rating.html" %}
+    <span class="card-price">${{ '%.2f'|format(product.price) }}</span>
+    {% if item and item.rationale %}
+      <p class="card-why">Why: {{ item.rationale }}</p>
+    {% endif %}
+  </div>
+</a>

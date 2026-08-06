@@ -1,0 +1,9 @@
+{% if product.stars is not none %}
+<div class="stars" role="img" aria-label="{{ product.stars }} out of 5 stars">
+  {% for i in range(1, 6) %}
+    <span class="star {{ 'star-filled' if product.stars >= i else 'star-half' if product.stars >= i - 0.5 else '' }}">★</span>
+  {% endfor %}
+  <span class="stars-count">{{ product.stars }}</span>
+  {% if product.reviews %}<span class="stars-reviews">({{ product.reviews }})</span>{% endif %}
+</div>
+{% endif %}
