@@ -503,6 +503,73 @@ def admin_users(
     )
 
 
+@router.get("/users/new", response_class=HTMLResponse)
+def new_user_form(
+    request: Request,
+    user: User = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        request,
+        "admin/user_form.html",
+        {
+            "current_user": user,
+            "target": None,
+            "error": None,
+            "errors": None,
+            "form": _user_form_values(),
+        },
+    )
+
+
+@router.post("/users", response_class=HTMLResponse)
+def create_user(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    full_name: str = Form(""),
+    email: str = Form(""),
+    mobile: str = Form(""),
+    age: str = Form(""),
+    gender: str = Form(""),
+    role: str = Form("user"),
+    telegram_chat_id: str = Form(""),
+    new_password: str = Form(""),
+):
+    data, errors = _validate_user_data(
+        db, email, full_name, mobile, age, gender, role, telegram_chat_id, new_password,
+        target=None, require_password=True,
+    )
+    if errors:
+        return templates.TemplateResponse(
+            request,
+            "admin/user_form.html",
+            {
+                "current_user": user,
+                "target": None,
+                "error": next(iter(errors.values())),
+                "errors": errors,
+                "form": _user_form_values(raw=locals()),
+            },
+            status_code=400,
+        )
+    new_user = User(
+        email=data["email"],
+        password_hash=auth_service.hash_password(data["new_password"]),
+        full_name=data["full_name"],
+        role=data["role"],
+        mobile=data["mobile"],
+        age=data["age"],
+        gender=data["gender"],
+        telegram_chat_id=data["telegram_chat_id"] or None,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    response = RedirectResponse(url="/admin/users", status_code=303)
+    set_flash(response, f"User created: {new_user.full_name or new_user.email}", "success")
+    return response
+
+
 @router.get("/users/{user_id}/edit", response_class=HTMLResponse)
 def edit_user_form(
     user_id: int,
@@ -565,7 +632,8 @@ def _validate_user_data(
     role: str,
     telegram_chat_id: str,
     new_password: str,
-    target: User,
+    target: User | None = None,
+    require_password: bool = False,
 ) -> tuple[dict, dict]:
     import re
 
@@ -586,8 +654,8 @@ def _validate_user_data(
         errors["email"] = "Please enter a valid email address."
     else:
         existing = auth_service.get_user_by_email(db, data["email"])
-        if existing is not None and existing.id != target.id:
-            errors["email"] = "Another account already uses this email."
+        if existing is not None and (target is None or existing.id != target.id):
+            errors["email"] = "An account with this email already exists."
     digits_only = re.sub(r"[^\d]", "", data["mobile"])
     if not (7 <= len(digits_only) <= 15):
         errors["mobile"] = "Enter a valid mobile number (7–15 digits)."
@@ -604,11 +672,12 @@ def _validate_user_data(
         errors["gender"] = "Please select a gender."
     if data["role"] not in ("user", "admin"):
         errors["role"] = "Role must be user or admin."
-    if new_password:
-        if len(new_password) < 8:
-            errors["new_password"] = "Password must be at least 8 characters."
-        else:
-            data["new_password"] = new_password
+    if require_password and not new_password:
+        errors["new_password"] = "Password is required."
+    elif new_password and len(new_password) < 8:
+        errors["new_password"] = "Password must be at least 8 characters."
+    elif new_password:
+        data["new_password"] = new_password
 
     return data, errors
 

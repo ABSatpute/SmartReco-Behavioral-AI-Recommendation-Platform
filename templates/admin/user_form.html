@@ -4,12 +4,12 @@
 
 {% block content %}
 <div class="page-head">
-  <h1>Edit user: {{ target.full_name or target.email }}</h1>
+  <h1>{{ 'Add user' if not target else 'Edit user: ' ~ (target.full_name or target.email) }}</h1>
   <a class="btn" href="/admin/users">← Back to users</a>
 </div>
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
-<form method="post" action="/admin/users/{{ target.id }}" class="form form-wide">
+<form method="post" action="{{ '/admin/users' if not target else '/admin/users/' ~ target.id }}" class="form form-wide">
   <div class="form-grid">
     <div class="form-field">
       <label for="full_name">Full name <span class="req">*</span></label>
@@ -62,8 +62,10 @@
     </div>
 
     <div class="form-field">
-      <label for="new_password">Reset password <span class="opt">Optional</span></label>
-      <input type="password" id="new_password" name="new_password" placeholder="Leave blank to keep current" autocomplete="new-password">
+      <label for="new_password">{% if not target %}Password <span class="req">*</span>{% else %}Reset password <span class="opt">Optional</span>{% endif %}</label>
+      <input type="password" id="new_password" name="new_password"
+             {% if not target %}required{% else %}placeholder="Leave blank to keep current"{% endif %}
+             autocomplete="new-password">
       {% if errors and errors.new_password %}<p class="field-error">{{ errors.new_password }}</p>{% endif %}
     </div>
   </div>

@@ -117,6 +117,85 @@ def test_users_edit_validation(client):
     assert 'value="bad"' in resp.text  # repopulated email
 
 
+def test_admin_can_create_user(client):
+    _make_admin(client)
+
+    resp = client.get("/admin/users/new")
+    assert resp.status_code == 200
+
+    resp = client.post(
+        "/admin/users",
+        data={
+            "full_name": "New User",
+            "email": "new@x.com",
+            "mobile": "+91 90000 00003",
+            "age": "27",
+            "gender": "other",
+            "role": "user",
+            "telegram_chat_id": "",
+            "new_password": "newpass123",
+        },
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/users"
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == "new@x.com").first()
+    assert user is not None
+    assert user.full_name == "New User"
+    assert user.role == "user"
+    assert user.age == 27
+    db.close()
+
+    # created user can log in with the set password
+    _login(client, "new@x.com", "newpass123")
+    resp = client.get("/")
+    assert resp.status_code == 200
+
+
+def test_admin_cannot_create_duplicate_email(client):
+    _make_admin(client)
+    _make_user(client)
+    _login(client, "boss@x.com", "adminpass1")
+
+    resp = client.post(
+        "/admin/users",
+        data={
+            "full_name": "Dup User",
+            "email": "worker@x.com",
+            "mobile": "+91 90000 00004",
+            "age": "28",
+            "gender": "male",
+            "role": "user",
+            "telegram_chat_id": "",
+            "new_password": "newpass123",
+        },
+    )
+    assert resp.status_code == 400
+    assert "already exists" in resp.text
+
+
+def test_admin_cannot_create_user_without_password(client):
+    _make_admin(client)
+
+    resp = client.post(
+        "/admin/users",
+        data={
+            "full_name": "No Pass",
+            "email": "nopass@x.com",
+            "mobile": "+91 90000 00005",
+            "age": "28",
+            "gender": "male",
+            "role": "user",
+            "telegram_chat_id": "",
+            "new_password": "",
+        },
+    )
+    assert resp.status_code == 400
+    assert "Password is required" in resp.text
+
+
 def test_users_email_uniqueness_excludes_self(client):
     _make_admin(client, email="admin@x.com")
 
