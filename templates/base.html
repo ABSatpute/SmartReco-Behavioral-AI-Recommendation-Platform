@@ -52,7 +52,7 @@
                 <a class="account-menu-link" href="/admin/users">Users</a>
                 <a class="account-menu-link" href="/admin/observability">Observability</a>
                 <div class="account-menu-sep"></div>
-                <a class="account-menu-link" href="/store">View store as user</a>
+                <a class="account-menu-link" href="/store">Shop</a>
               {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">
@@ -69,6 +69,7 @@
           </a>
         {% endif %}
 
+        {% if not (current_user and current_user.role == 'admin') %}
         <a class="cart-link" href="/cart" aria-label="Cart">
           <svg class="cart-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -76,15 +77,17 @@
           </svg>
           <span class="cart-badge" data-cart-count>0</span>
         </a>
+        {% endif %}
       </div>
     </div>
 
     <!-- Navbar (RBAC-aware) -->
+    {% if not (current_user and current_user.role == 'admin') %}
     <nav class="navbar" aria-label="Primary">
       <div class="navbar-inner">
         <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle menu" aria-expanded="false">☰</button>
         <ul class="nav" data-nav>
-          <li><a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="{{ '/store' if current_user and current_user.role == 'admin' else '/' }}">Shop</a></li>
+          <li><a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Shop</a></li>
 
           <li class="nav-dropdown" data-dropdown>
             <button class="nav-dropbtn" type="button" data-dropdown-btn aria-haspopup="true" aria-expanded="false">
@@ -113,6 +116,7 @@
         </ul>
       </div>
     </nav>
+    {% endif %}
   </header>
 
   <!-- Layout: optional sidebar + content -->
@@ -131,7 +135,7 @@
       </div>
       <div class="footer-col">
         <h4>Shop</h4>
-        <a href="/">Shop all</a>
+        <a href="{{ '/store' if current_user and current_user.role == 'admin' else '/' }}">Shop all</a>
         <a href="/search">Search</a>
       </div>
       <div class="footer-col">
@@ -139,7 +143,7 @@
         {% if current_user and current_user.role != 'admin' %}
           <a href="/recommendations">My Recommendations</a>
         {% elif current_user %}
-          <a href="/store">View store as user</a>
+          <a href="/store">Shop</a>
         {% endif %}
         {% if current_user %}
           <form method="post" action="/auth/logout" class="inline-form"><button type="submit" class="btn-link">Log out</button></form>
