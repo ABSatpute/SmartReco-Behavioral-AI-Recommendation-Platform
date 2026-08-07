@@ -42,6 +42,12 @@
             </button>
             <div class="account-menu" data-account-menu>
               <a class="account-menu-link" href="/recommendations">My Account</a>
+              {% if current_user.role == 'admin' %}
+                <span class="account-menu-head">Admin</span>
+                <a class="account-menu-link" href="/admin">Dashboard</a>
+                <a class="account-menu-link" href="/admin/products">Products</a>
+                <a class="account-menu-link" href="/admin/observability">Observability</a>
+              {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">
                 <button type="submit" class="account-menu-link account-menu-logout">Log out</button>
@@ -90,19 +96,6 @@
 
           {% if current_user %}
             <li><a class="nav-link {% if request.url.path == '/recommendations' %}active{% endif %}" href="/recommendations">My Recommendations</a></li>
-          {% endif %}
-
-          {% if current_user and current_user.role == 'admin' %}
-            <li class="nav-dropdown" data-dropdown>
-              <button class="nav-dropbtn" type="button" data-dropdown-btn aria-haspopup="true" aria-expanded="false">
-                Admin <span aria-hidden="true">▾</span>
-              </button>
-              <div class="nav-menu" data-dropdown-menu>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/products">Products</a>
-                <a href="/admin/observability">Observability</a>
-              </div>
-            </li>
           {% endif %}
 
           {% if not current_user %}
