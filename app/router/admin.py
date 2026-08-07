@@ -8,6 +8,7 @@ from app.deps import require_admin
 from app.flash import set_flash
 from app.models import AgentRun, Product, Recommendation, User, UserEvent
 from app.observability import current_trace_id, langsmith_enabled
+from app.services import auth as auth_service
 from app.services import products as product_service
 from app.templating import templates
 from app.vector_store import get_vector_store
@@ -459,3 +460,224 @@ def observability_page(
             "current_trace_id": current_trace_id(),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Users management
+# ---------------------------------------------------------------------------
+@router.get("/users", response_class=HTMLResponse)
+def admin_users(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    q: str = "",
+    page: int = 1,
+):
+    per_page = 20
+    query = db.query(User)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter((User.email.ilike(like)) | (User.full_name.ilike(like)))
+    total = query.count()
+    from math import ceil
+
+    pages = max(1, ceil(total / per_page))
+    page = max(1, min(page, pages))
+    users = (
+        query.order_by(User.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "admin/users.html",
+        {
+            "current_user": user,
+            "users": users,
+            "total": total,
+            "page": page,
+            "pages": pages,
+            "q": q,
+        },
+    )
+
+
+@router.get("/users/{user_id}/edit", response_class=HTMLResponse)
+def edit_user_form(
+    user_id: int,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return templates.TemplateResponse(
+        request,
+        "admin/user_form.html",
+        {
+            "current_user": user,
+            "target": target,
+            "error": None,
+            "errors": None,
+            "form": _user_form_values(target),
+        },
+    )
+
+
+def _user_form_values(target: User | None = None, raw: dict | None = None) -> dict:
+    if raw is not None:
+        return {
+            "full_name": raw.get("full_name", ""),
+            "email": raw.get("email", ""),
+            "mobile": raw.get("mobile", ""),
+            "age": raw.get("age", ""),
+            "gender": raw.get("gender", ""),
+            "role": raw.get("role", "user"),
+            "telegram_chat_id": raw.get("telegram_chat_id", ""),
+            "new_password": raw.get("new_password", ""),
+        }
+    if target is None:
+        return {
+            "full_name": "", "email": "", "mobile": "", "age": "", "gender": "",
+            "role": "user", "telegram_chat_id": "", "new_password": "",
+        }
+    return {
+        "full_name": target.full_name or "",
+        "email": target.email or "",
+        "mobile": target.mobile or "",
+        "age": str(target.age) if target.age is not None else "",
+        "gender": target.gender or "",
+        "role": target.role or "user",
+        "telegram_chat_id": target.telegram_chat_id or "",
+        "new_password": "",
+    }
+
+
+def _validate_user_data(
+    db: Session,
+    email: str,
+    full_name: str,
+    mobile: str,
+    age: str,
+    gender: str,
+    role: str,
+    telegram_chat_id: str,
+    new_password: str,
+    target: User,
+) -> tuple[dict, dict]:
+    import re
+
+    errors: dict[str, str] = {}
+    data: dict = {
+        "email": email.strip().lower(),
+        "full_name": full_name.strip(),
+        "mobile": mobile.strip(),
+        "gender": gender.strip(),
+        "role": role.strip(),
+        "telegram_chat_id": telegram_chat_id.strip(),
+        "age": None,
+    }
+
+    if len(data["full_name"]) < 2:
+        errors["full_name"] = "Please enter a valid full name."
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", data["email"]):
+        errors["email"] = "Please enter a valid email address."
+    else:
+        existing = auth_service.get_user_by_email(db, data["email"])
+        if existing is not None and existing.id != target.id:
+            errors["email"] = "Another account already uses this email."
+    digits_only = re.sub(r"[^\d]", "", data["mobile"])
+    if not (7 <= len(digits_only) <= 15):
+        errors["mobile"] = "Enter a valid mobile number (7–15 digits)."
+    try:
+        age_val = int(age)
+    except (TypeError, ValueError):
+        errors["age"] = "Please enter a valid age."
+    else:
+        if not (1 <= age_val <= 119):
+            errors["age"] = "Please enter an age between 1 and 119."
+        else:
+            data["age"] = age_val
+    if not data["gender"]:
+        errors["gender"] = "Please select a gender."
+    if data["role"] not in ("user", "admin"):
+        errors["role"] = "Role must be user or admin."
+    if new_password:
+        if len(new_password) < 8:
+            errors["new_password"] = "Password must be at least 8 characters."
+        else:
+            data["new_password"] = new_password
+
+    return data, errors
+
+
+@router.post("/users/{user_id}", response_class=HTMLResponse)
+def update_user(
+    user_id: int,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    full_name: str = Form(""),
+    email: str = Form(""),
+    mobile: str = Form(""),
+    age: str = Form(""),
+    gender: str = Form(""),
+    role: str = Form("user"),
+    telegram_chat_id: str = Form(""),
+    new_password: str = Form(""),
+):
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+    data, errors = _validate_user_data(
+        db, email, full_name, mobile, age, gender, role, telegram_chat_id, new_password, target
+    )
+    if errors:
+        return templates.TemplateResponse(
+            request,
+            "admin/user_form.html",
+            {
+                "current_user": user,
+                "target": target,
+                "error": next(iter(errors.values())),
+                "errors": errors,
+                "form": _user_form_values(raw=locals()),
+            },
+            status_code=400,
+        )
+    target.full_name = data["full_name"]
+    target.email = data["email"]
+    target.mobile = data["mobile"]
+    target.age = data["age"]
+    target.gender = data["gender"]
+    target.role = data["role"]
+    target.telegram_chat_id = data["telegram_chat_id"] or None
+    if data.get("new_password"):
+        target.password_hash = auth_service.hash_password(data["new_password"])
+    db.commit()
+    db.refresh(target)
+    response = RedirectResponse(url="/admin/users", status_code=303)
+    set_flash(response, f"User updated: {target.full_name or target.email}", "success")
+    return response
+
+
+@router.post("/users/{user_id}/delete", response_class=HTMLResponse)
+def delete_user(
+    user_id: int,
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if target.id == user.id:
+        raise HTTPException(status_code=400, detail="You can't delete your own account.")
+    email = target.email
+    db.delete(target)
+    db.commit()
+    response = RedirectResponse(url="/admin/users", status_code=303)
+    set_flash(response, f"User deleted: {email}", "success")
+    return response

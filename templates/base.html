@@ -47,6 +47,7 @@
                 <span class="account-menu-head">Admin</span>
                 <a class="account-menu-link" href="/admin">Dashboard</a>
                 <a class="account-menu-link" href="/admin/products">Products</a>
+                <a class="account-menu-link" href="/admin/users">Users</a>
                 <a class="account-menu-link" href="/admin/observability">Observability</a>
               {% endif %}
               <div class="account-menu-sep"></div>
@@ -144,6 +145,7 @@
         {% if current_user and current_user.role == 'admin' %}
           <a href="/admin">Dashboard</a>
           <a href="/admin/products">Admin — products</a>
+          <a href="/admin/users">Admin — users</a>
           <a href="/admin/observability">Observability</a>
         {% else %}
           <span class="muted">Admin access only</span>

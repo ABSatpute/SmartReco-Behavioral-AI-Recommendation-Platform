@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Users · SmartReco{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Users <span class="muted">({{ total }})</span></h1>
+  <a class="btn" href="/admin">← Dashboard</a>
+</div>
+
+<form method="get" action="/admin/users" class="filter-bar" role="search">
+  <input class="filter-input" type="search" name="q" value="{{ q }}" placeholder="Search by name or email…" aria-label="Search users">
+  <button type="submit" class="btn">Filter</button>
+  {% if q %}<a class="btn btn-link" href="/admin/users">Clear</a>{% endif %}
+</form>
+
+<table class="table admin-products">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Mobile</th>
+      <th>Age</th>
+      <th>Gender</th>
+      <th>Telegram</th>
+      <th>Joined</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td class="muted">{{ u.id }}</td>
+      <td>
+        <a class="admin-title" href="/admin/users/{{ u.id }}/edit">{{ u.full_name or '—' }}</a>
+        {% if u.id == current_user.id %}<span class="badge badge-active">you</span>{% endif %}
+      </td>
+      <td>{{ u.email }}</td>
+      <td>
+        <span class="badge {{ 'badge-best' if u.role == 'admin' else 'badge-active' }}">{{ u.role }}</span>
+      </td>
+      <td>{{ u.mobile or '—' }}</td>
+      <td>{{ u.age or '—' }}</td>
+      <td>{{ u.gender or '—' }}</td>
+      <td class="muted small">{{ u.telegram_chat_id or '—' }}</td>
+      <td class="muted small">{{ u.created_at.strftime('%b %d, %Y') if u.created_at else '—' }}</td>
+      <td class="actions">
+        <a href="/admin/users/{{ u.id }}/edit">Edit</a>
+        {% if u.id != current_user.id %}
+        <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline-form"
+              data-confirm="Delete user '{{ u.full_name or u.email }}'? This removes their account and sessions. This can't be undone.">
+          <button type="submit" class="btn-link danger">Delete</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="10"><span class="muted">No users match your search.</span></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if pages > 1 %}
+<nav class="pagination" aria-label="User pages">
+  {% if page > 1 %}
+    <a class="btn" href="/admin/users?q={{ q | urlencode }}&page={{ page - 1 }}">← Prev</a>
+  {% endif %}
+  <span class="pagination-info">Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}
+    <a class="btn" href="/admin/users?q={{ q | urlencode }}&page={{ page + 1 }}">Next →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("form[data-confirm]").forEach(function (form) {
+      form.addEventListener("submit", function (e) {
+        if (!window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
+      });
+    });
+  });
+</script>
+{% endblock %}
