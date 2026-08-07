@@ -51,6 +51,8 @@
                 <a class="account-menu-link" href="/admin/products">Products</a>
                 <a class="account-menu-link" href="/admin/users">Users</a>
                 <a class="account-menu-link" href="/admin/observability">Observability</a>
+                <div class="account-menu-sep"></div>
+                <a class="account-menu-link" href="/store">View store as user</a>
               {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">
@@ -82,7 +84,7 @@
       <div class="navbar-inner">
         <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle menu" aria-expanded="false">☰</button>
         <ul class="nav" data-nav>
-          <li><a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Shop</a></li>
+          <li><a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="{{ '/store' if current_user and current_user.role == 'admin' else '/' }}">Shop</a></li>
 
           <li class="nav-dropdown" data-dropdown>
             <button class="nav-dropbtn" type="button" data-dropdown-btn aria-haspopup="true" aria-expanded="false">
@@ -98,7 +100,7 @@
             </div>
           </li>
 
-          {% if current_user %}
+          {% if current_user and current_user.role != 'admin' %}
             <li><a class="nav-link {% if request.url.path == '/recommendations' %}active{% endif %}" href="/recommendations">My Recommendations</a></li>
           {% endif %}
 
@@ -134,8 +136,12 @@
       </div>
       <div class="footer-col">
         <h4>Account</h4>
-        {% if current_user %}
+        {% if current_user and current_user.role != 'admin' %}
           <a href="/recommendations">My Recommendations</a>
+        {% elif current_user %}
+          <a href="/store">View store as user</a>
+        {% endif %}
+        {% if current_user %}
           <form method="post" action="/auth/logout" class="inline-form"><button type="submit" class="btn-link">Log out</button></form>
         {% else %}
           <a href="/auth/login">Log in</a>

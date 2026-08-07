@@ -32,16 +32,7 @@ def _nav_context(request: Request, user: User | None, db: Session) -> dict:
     }
 
 
-@router.get("/", response_class=HTMLResponse)
-def home(
-    request: Request,
-    user: User | None = Depends(current_user),
-    db: Session = Depends(get_db),
-):
-    if user is None:
-        return RedirectResponse(url="/auth/login", status_code=302)
-    if user.role == "admin":
-        return RedirectResponse(url="/admin", status_code=302)
+def _render_home(request: Request, user: User, db: Session):
     products = (
         db.query(Product)
         .filter(Product.is_active.is_(True))
@@ -58,6 +49,32 @@ def home(
         }
     )
     return templates.TemplateResponse(request, "index.html", ctx)
+
+
+@router.get("/", response_class=HTMLResponse)
+def home(
+    request: Request,
+    user: User | None = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    if user is None:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    if user.role == "admin":
+        return RedirectResponse(url="/admin", status_code=302)
+    return _render_home(request, user, db)
+
+
+@router.get("/store", response_class=HTMLResponse)
+def store_preview(
+    request: Request,
+    user: User | None = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    """Storefront preview for admins: renders the user-facing home page
+    without redirecting to the admin dashboard."""
+    if user is None:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    return _render_home(request, user, db)
 
 
 @router.get("/products/{slug}", response_class=HTMLResponse)
