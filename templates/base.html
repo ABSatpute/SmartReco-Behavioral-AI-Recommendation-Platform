@@ -47,6 +47,7 @@
               <a class="account-menu-link" href="/recommendations">My Account</a>
               {% if current_user.role == 'admin' %}
                 <span class="account-menu-head">Admin</span>
+                <a class="account-menu-link" href="/admin">Dashboard</a>
                 <a class="account-menu-link" href="/admin/products">Products</a>
                 <a class="account-menu-link" href="/admin/observability">Observability</a>
               {% endif %}
@@ -106,6 +107,7 @@
                 Admin <span aria-hidden="true">▾</span>
               </button>
               <div class="nav-menu" data-dropdown-menu>
+                <a href="/admin">Dashboard</a>
                 <a href="/admin/products">Products</a>
                 <a href="/admin/observability">Observability</a>
               </div>
@@ -155,6 +157,7 @@
       <div class="footer-col">
         <h4>Manage</h4>
         {% if current_user and current_user.role == 'admin' %}
+          <a href="/admin">Dashboard</a>
           <a href="/admin/products">Admin — products</a>
           <a href="/admin/observability">Observability</a>
         {% else %}

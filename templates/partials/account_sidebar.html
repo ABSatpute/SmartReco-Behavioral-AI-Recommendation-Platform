@@ -7,6 +7,7 @@
   {% if current_user and current_user.role == 'admin' %}
     <p class="sidebar-title">Admin</p>
     <ul class="sidebar-nav">
+      <li><a class="{% if request.url.path == '/admin' %}active{% endif %}" href="/admin">Dashboard</a></li>
       <li><a href="/admin/products">Products</a></li>
       <li><a href="/admin/observability">Observability</a></li>
     </ul>
