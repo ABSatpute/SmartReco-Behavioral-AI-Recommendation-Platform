@@ -12,39 +12,86 @@
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
 <form method="post" action="{{ '/admin/products/' ~ product.id if product else '/admin/products' }}" class="form form-wide">
-  <div class="form-field">
-    <label for="title">Title *</label>
-    <input type="text" id="title" name="title" required value="{{ product.title if product else '' }}">
+  <div class="form-grid">
+    <div class="form-field">
+      <label for="title">Title <span class="req">*</span></label>
+      <input type="text" id="title" name="title" required value="{{ form.title }}">
+      {% if errors and errors.title %}<p class="field-error">{{ errors.title }}</p>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label for="category">Category <span class="req">*</span></label>
+      <input type="text" id="category" name="category" required value="{{ form.category }}">
+      {% if errors and errors.category %}<p class="field-error">{{ errors.category }}</p>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label for="price">Price <span class="req">*</span></label>
+      <input type="number" id="price" name="price" step="0.01" min="0" required value="{{ form.price }}">
+      {% if errors and errors.price %}<p class="field-error">{{ errors.price }}</p>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label for="level">Level <span class="opt">Optional</span></label>
+      <select id="level" name="level">
+        <option value="">—</option>
+        {% for opt in ['beginner', 'intermediate', 'advanced'] %}
+          <option value="{{ opt }}" {% if form.level == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-field">
+      <label for="image_url">Image URL <span class="opt">Optional</span></label>
+      <input type="url" id="image_url" name="image_url" value="{{ form.image_url }}">
+    </div>
+
+    <div class="form-field">
+      <label for="product_url">Product URL <span class="opt">Optional</span></label>
+      <input type="url" id="product_url" name="product_url" value="{{ form.product_url }}">
+    </div>
+
+    <div class="form-field">
+      <label for="asin">ASIN <span class="opt">Optional</span></label>
+      <input type="text" id="asin" name="asin" value="{{ form.asin }}">
+    </div>
+
+    <div class="form-field">
+      <label for="tags">Tags <span class="opt">Optional</span></label>
+      <input type="text" id="tags" name="tags" value="{{ form.tags }}" placeholder="space or comma separated">
+    </div>
+
+    <div class="form-field">
+      <label for="stars">Stars (0–5) <span class="opt">Optional</span></label>
+      <input type="number" id="stars" name="stars" step="0.1" min="0" max="5" value="{{ form.stars }}">
+      {% if errors and errors.stars %}<p class="field-error">{{ errors.stars }}</p>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label for="reviews">Reviews <span class="opt">Optional</span></label>
+      <input type="number" id="reviews" name="reviews" step="1" min="0" value="{{ form.reviews }}">
+      {% if errors and errors.reviews %}<p class="field-error">{{ errors.reviews }}</p>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label for="bought_in_last_month">Bought in last month <span class="opt">Optional</span></label>
+      <input type="number" id="bought_in_last_month" name="bought_in_last_month" step="1" min="0" value="{{ form.bought_in_last_month }}">
+      {% if errors and errors.bought_in_last_month %}<p class="field-error">{{ errors.bought_in_last_month }}</p>{% endif %}
+    </div>
+
+    <div class="form-field">
+      <label class="checkbox">
+        <input type="checkbox" name="is_best_seller" {% if form.is_best_seller %}checked{% endif %}>
+        Best seller
+      </label>
+    </div>
+
+    <div class="form-field form-field-wide">
+      <label for="description">Description <span class="opt">Optional</span></label>
+      <textarea id="description" name="description" rows="6">{{ form.description }}</textarea>
+    </div>
   </div>
-  <div class="form-field">
-    <label for="category">Category *</label>
-    <input type="text" id="category" name="category" required value="{{ product.category if product else '' }}">
-  </div>
-  <div class="form-field">
-    <label for="price">Price *</label>
-    <input type="number" id="price" name="price" step="0.01" min="0" required value="{{ product.price if product else '' }}">
-  </div>
-  <div class="form-field">
-    <label for="level">Level</label>
-    <select id="level" name="level">
-      <option value="">—</option>
-      {% for opt in ['beginner', 'intermediate', 'advanced'] %}
-        <option value="{{ opt }}" {% if product and product.level == opt %}selected{% endif %}>{{ opt }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="form-field">
-    <label for="tags">Tags (space or comma separated)</label>
-    <input type="text" id="tags" name="tags" value="{{ (product.tags or []) | join(' ') if product else '' }}">
-  </div>
-  <div class="form-field">
-    <label for="image_url">Image URL</label>
-    <input type="url" id="image_url" name="image_url" value="{{ product.image_url if product and product.image_url else '' }}">
-  </div>
-  <div class="form-field">
-    <label for="description">Description</label>
-    <textarea id="description" name="description" rows="6">{{ product.description if product else '' }}</textarea>
-  </div>
+
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="/admin/products" class="btn">Cancel</a>

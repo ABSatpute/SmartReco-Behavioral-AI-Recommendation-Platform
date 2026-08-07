@@ -6,32 +6,86 @@
 
 {% block content %}
 <div class="page-head">
-  <h1>Products</h1>
-  <a class="btn btn-primary" href="/admin/products/new">+ New product</a>
+  <h1>Products <span class="muted">({{ total }})</span></h1>
+  <div class="actions">
+    <form method="post" action="/admin/products/resync-all" class="inline-form"
+          data-confirm="Embed any active products that are missing vectors? This may take a moment.">
+      <button type="submit" class="btn">↻ Sync missing vectors</button>
+    </form>
+    <a class="btn btn-primary" href="/admin/products/new">+ New product</a>
+  </div>
 </div>
 
-<table class="table">
+<form method="get" action="/admin/products" class="filter-bar" role="search">
+  <input class="filter-input" type="search" name="q" value="{{ q }}" placeholder="Search title, description, tags…" aria-label="Search products">
+  <select class="filter-input" name="category" aria-label="Filter by category">
+    <option value="">All categories</option>
+    {% for cat in categories %}
+      <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
+    {% endfor %}
+  </select>
+  <select class="filter-input" name="status" aria-label="Filter by status">
+    <option value="">All statuses</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+  </select>
+  <button type="submit" class="btn">Filter</button>
+  {% if q or category or status %}
+    <a class="btn btn-link" href="/admin/products">Clear</a>
+  {% endif %}
+</form>
+
+<table class="table admin-products">
   <thead>
     <tr>
-      <th>ID</th><th>Title</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th>
+      <th></th>
+      <th>Title</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Level</th>
+      <th>Status</th>
+      <th>Vector</th>
+      <th>Updated</th>
+      <th>Actions</th>
     </tr>
   </thead>
   <tbody>
     {% for product in products %}
     <tr>
-      <td>{{ product.id }}</td>
-      <td>{{ product.title }}</td>
+      <td class="admin-thumb">
+        {% if product.image_url %}
+          <img src="{{ product.image_url }}" alt="" loading="lazy">
+        {% else %}
+          <span class="admin-thumb-empty">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <a class="admin-title" href="/admin/products/{{ product.id }}/edit">{{ product.title }}</a>
+        {% if product.is_best_seller %}<span class="badge badge-best">best seller</span>{% endif %}
+      </td>
       <td>{{ product.category }}</td>
       <td>${{ product.price }}</td>
+      <td>{{ product.level or '—' }}</td>
       <td>
         <span class="badge {{ 'badge-active' if product.is_active else 'badge-inactive' }}">
           {{ 'active' if product.is_active else 'inactive' }}
         </span>
       </td>
+      <td>
+        {% if product.vector_synced_at %}
+          <span class="badge badge-active" title="Last synced {{ product.vector_synced_at | string }}">synced</span>
+        {% elif product.is_active %}
+          <span class="badge badge-inactive">unsynced</span>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td class="muted small">{{ product.updated_at.strftime('%b %d, %H:%M') if product.updated_at else '—' }}</td>
       <td class="actions">
         <a href="/admin/products/{{ product.id }}/edit">Edit</a>
+        <a href="/admin/products/{{ product.id }}/resync">Re-sync</a>
         {% if product.is_active %}
-        <form method="post" action="/admin/products/{{ product.id }}/delete" class="inline-form">
+        <form method="post" action="/admin/products/{{ product.id }}/delete" class="inline-form" data-confirm="Delete '{{ product.title }}'? This archives it and removes its vector.">
           <button type="submit" class="btn-link danger">Delete</button>
         </form>
         {% else %}
@@ -39,7 +93,33 @@
         {% endif %}
       </td>
     </tr>
+    {% else %}
+    <tr><td colspan="9"><span class="muted">No products match your filters.</span></td></tr>
     {% endfor %}
   </tbody>
 </table>
+
+{% if pages > 1 %}
+<nav class="pagination" aria-label="Product pages">
+  {% if page > 1 %}
+    <a class="btn" href="/admin/products?q={{ q | urlencode }}&category={{ category | urlencode }}&status={{ status }}&page={{ page - 1 }}">← Prev</a>
+  {% endif %}
+  <span class="pagination-info">Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}
+    <a class="btn" href="/admin/products?q={{ q | urlencode }}&category={{ category | urlencode }}&status={{ status }}&page={{ page + 1 }}">Next →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("form[data-confirm]").forEach(function (form) {
+      form.addEventListener("submit", function (e) {
+        if (!window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
+      });
+    });
+  });
+</script>
 {% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Dashboard · SmartReco{% endblock %}
+
+{% block sidebar %}{% include "partials/admin_sidebar.html" %}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Dashboard</h1>
+  <a class="btn" href="/admin/observability">Agent observability →</a>
+</div>
+
+<div class="stat-grid">
+  <div class="stat">
+    <span class="stat-value">{{ active_products }}</span>
+    <span class="stat-label">Active products</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ inactive_products }}</span>
+    <span class="stat-label">Inactive / archived</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ total_users }}</span>
+    <span class="stat-label">Registered users</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ event_count }}</span>
+    <span class="stat-label">Behavioral events</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ reco_count }}</span>
+    <span class="stat-label">Recommendations</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ total_runs }}</span>
+    <span class="stat-label">Agent runs ({{ successful_runs }} ok · {{ failed_runs }} failed)</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">
+      {% if vector_count is not none %}{{ vector_count }}{% else %}—{% endif %}
+    </span>
+    <span class="stat-label">Vectors in Pinecone</span>
+  </div>
+</div>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Recent agent runs</h2>
+    <a class="section-link" href="/admin/observability">View all</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Trigger</th><th>LLM calls</th><th>Tokens</th><th>Ms</th><th>Status</th><th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in recent_runs %}
+      <tr>
+        <td>{{ run.id }}</td>
+        <td>{{ run.trigger }}</td>
+        <td>{{ run.llm_calls }}</td>
+        <td>{{ run.total_tokens }}</td>
+        <td>{{ run.duration_ms }}</td>
+        <td>
+          {% if run.error %}
+            <span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>
+          {% else %}
+            <span class="badge badge-active">ok</span>
+          {% endif %}
+        </td>
+        <td>{{ run.created_at | string }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7"><span class="muted">No agent runs recorded yet.</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Recently added products</h2>
+    <a class="section-link" href="/admin/products">Manage catalog</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr><th>ID</th><th>Title</th><th>Category</th><th>Price</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for product in recent_products %}
+      <tr>
+        <td>{{ product.id }}</td>
+        <td><a href="/admin/products/{{ product.id }}/edit">{{ product.title }}</a></td>
+        <td>{{ product.category }}</td>
+        <td>${{ product.price }}</td>
+        <td>
+          <span class="badge {{ 'badge-active' if product.is_active else 'badge-inactive' }}">
+            {{ 'active' if product.is_active else 'inactive' }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5"><span class="muted">No products yet — <a href="/admin/products/new">add your first product</a>.</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

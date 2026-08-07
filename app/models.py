@@ -74,6 +74,7 @@ class Product(Base):
     is_best_seller: Mapped[bool] = mapped_column(Boolean, default=False)
     bought_in_last_month: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    vector_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow_naive, onupdate=utcnow_naive

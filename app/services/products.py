@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models import Product
 from app.services import mesh
 from app.utils import utcnow_naive
-from app.vector_store import get_vector_store
+from app.vector_store import NullVectorStore, get_vector_store
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,7 @@ def _sync_products(db: Session, products: list[Product]) -> int:
     """Embed + upsert a product list in resilient 50-item chunks. Returns count."""
     store = get_vector_store()
     embedded = 0
+    stamped: list[Product] = []
     for i in range(0, len(products), 50):
         chunk = products[i : i + 50]
         try:
@@ -116,21 +117,41 @@ def _sync_products(db: Session, products: list[Product]) -> int:
             payload.append((f"product:{p.id}", vector, _vector_metadata(p)))
         if payload:
             embedded += _upsert_chunk_resilient(store, payload)
+            if not isinstance(store, NullVectorStore):
+                for p in chunk:
+                    if vectors_by_id.get(p.id) is not None:
+                        p.vector_synced_at = utcnow_naive()
+                        stamped.append(p)
+    if stamped:
+        db.commit()
     return embedded
 
 
 def sync_product_vector(db: Session, product: Product) -> None:
-    """Dual-write: push (or remove) a single product's vector."""
+    """Dual-write: push (or remove) a single product's vector.
+
+    Records ``vector_synced_at`` on success so the admin UI can show whether the
+    SQL and vector stores are in sync; cleared when the vector is removed or the
+    write fails.
+    """
     store = get_vector_store()
     vector_id = f"product:{product.id}"
     if not product.is_active:
         store.delete([vector_id])
+        product.vector_synced_at = None
+        db.commit()
         return
     try:
         vector = mesh.embed_one(_product_text(product))
         store.upsert([(vector_id, vector, _vector_metadata(product))])
+        product.vector_synced_at = (
+            utcnow_naive() if not isinstance(store, NullVectorStore) else None
+        )
+        db.commit()
     except mesh.MeshError as exc:
         logger.error("Vector sync failed for product %s: %s", product.id, exc)
+        product.vector_synced_at = None
+        db.commit()
 
 
 def create_product(db: Session, data: dict) -> Product:
@@ -165,6 +186,12 @@ def update_product(db: Session, product: Product, data: dict) -> Product:
     product.price = float(data.get("price", 0))
     product.level = data.get("level") or None
     product.image_url = data.get("image_url") or None
+    product.product_url = data.get("product_url") or None
+    product.asin = data.get("asin") or None
+    product.stars = data.get("stars")
+    product.reviews = data.get("reviews")
+    product.is_best_seller = bool(data.get("is_best_seller", False))
+    product.bought_in_last_month = data.get("bought_in_last_month")
     product.updated_at = utcnow_naive()
     db.commit()
     db.refresh(product)
@@ -256,8 +283,12 @@ def top_categories(db: Session, limit: int = 10) -> list[str]:
 
 
 def resync_all(db: Session) -> int:
-    """Re-embed every active product into the vector store. Returns count."""
-    products = list_products(db)
+    """Re-embed every active product missing a vector. Returns count."""
+    products = (
+        db.query(Product)
+        .filter(Product.is_active.is_(True), Product.vector_synced_at.is_(None))
+        .all()
+    )
     if not products:
         return 0
     return _sync_products(db, products)
