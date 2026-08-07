@@ -37,9 +37,6 @@
             <button type="button" class="account" data-account-btn aria-haspopup="true" aria-expanded="false">
               <span class="account-body">
                 <span class="account-greet">Hello, {{ current_user.full_name or current_user.email }}</span>
-                <span class="role-pill role-pill-{{ 'admin' if current_user.role == 'admin' else 'member' }}">
-                  {{ 'Admin' if current_user.role == 'admin' else 'Member' }}
-                </span>
               </span>
               <span class="account-caret" aria-hidden="true">▾</span>
             </button>
