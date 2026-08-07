@@ -1,6 +1,11 @@
 name: SmartReco Checks
 
-on: [push]
+# Paused: run only on demand so pushes don't produce failure notifications until
+# the SUBMISSION_TOKEN / MESH_API_KEY secrets are configured and we're ready to
+# submit. Re-enable by switching back to `on: [push]`, or just use the "Run
+# workflow" button on the Actions tab.
+on:
+  workflow_dispatch:
 
 permissions:
   id-token: write      # required — without this the OIDC env vars do not exist
