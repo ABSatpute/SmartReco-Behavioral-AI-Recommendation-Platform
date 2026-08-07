@@ -43,7 +43,7 @@ def _register_regular(client, email="user@x.com"):
 
 def test_trace_id_middleware_injects_and_echoes(client):
     resp = client.get("/")
-    assert resp.status_code == 200
+    assert resp.status_code in (200, 302)
     echo = resp.headers.get("x-trace-id")
     assert echo
     assert len(echo) > 8

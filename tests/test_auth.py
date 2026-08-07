@@ -139,7 +139,25 @@ def test_recommendations_requires_login(client):
     assert resp.headers["location"] == "/auth/login"
 
 
-def test_home_renders(client):
+def test_home_redirects_to_login_when_logged_out(client):
+    resp = client.get("/", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/auth/login"
+
+
+def test_home_renders_for_logged_in_user(client):
+    client.post(
+        "/auth/register",
+        data={
+            "email": "home@example.com",
+            "password": "homepass1",
+            "full_name": "Home User",
+            "mobile": "+91 90000 00009",
+            "age": "25",
+            "gender": "other",
+        },
+        follow_redirects=False,
+    )
     resp = client.get("/")
     assert resp.status_code == 200
     assert "SmartReco" in resp.text

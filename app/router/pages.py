@@ -38,6 +38,8 @@ def home(
     user: User | None = Depends(current_user),
     db: Session = Depends(get_db),
 ):
+    if user is None:
+        return RedirectResponse(url="/auth/login", status_code=302)
     products = (
         db.query(Product)
         .filter(Product.is_active.is_(True))
