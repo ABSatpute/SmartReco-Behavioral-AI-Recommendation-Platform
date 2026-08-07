@@ -40,6 +40,8 @@ def home(
 ):
     if user is None:
         return RedirectResponse(url="/auth/login", status_code=302)
+    if user.role == "admin":
+        return RedirectResponse(url="/admin", status_code=302)
     products = (
         db.query(Product)
         .filter(Product.is_active.is_(True))

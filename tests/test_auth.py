@@ -161,3 +161,29 @@ def test_home_renders_for_logged_in_user(client):
     resp = client.get("/")
     assert resp.status_code == 200
     assert "SmartReco" in resp.text
+
+
+def test_admin_home_redirects_to_dashboard(client):
+    client.post(
+        "/auth/register",
+        data={
+            "email": "adminhome@example.com",
+            "password": "adminpass1",
+            "full_name": "Admin Home",
+            "mobile": "+91 90000 00010",
+            "age": "35",
+            "gender": "other",
+        },
+        follow_redirects=False,
+    )
+    from app.database import SessionLocal
+    from app.models import User
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == "adminhome@example.com").first()
+    user.role = "admin"
+    db.commit()
+    db.close()
+    resp = client.get("/", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/admin"

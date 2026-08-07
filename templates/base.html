@@ -45,12 +45,6 @@
             </button>
             <div class="account-menu" data-account-menu>
               <a class="account-menu-link" href="/recommendations">My Account</a>
-              {% if current_user.role == 'admin' %}
-                <span class="account-menu-head">Admin</span>
-                <a class="account-menu-link" href="/admin">Dashboard</a>
-                <a class="account-menu-link" href="/admin/products">Products</a>
-                <a class="account-menu-link" href="/admin/observability">Observability</a>
-              {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">
                 <button type="submit" class="account-menu-link account-menu-logout">Log out</button>
