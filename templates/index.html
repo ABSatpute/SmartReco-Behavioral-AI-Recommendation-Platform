@@ -3,6 +3,7 @@
 {% block title %}SmartReco — Shop products that fit your journey{% endblock %}
 
 {% block content %}
+{% if not hide_hero %}
 <section class="hero">
   <h1>Products that fit <em>your</em> journey</h1>
   <p>Every search, view and click tunes SmartReco to you. We turn your behavior into
@@ -15,6 +16,7 @@
     </div>
   {% endif %}
 </section>
+{% endif %}
 
 {% if reco_picks %}
   <section class="section" aria-label="Recommended for you">

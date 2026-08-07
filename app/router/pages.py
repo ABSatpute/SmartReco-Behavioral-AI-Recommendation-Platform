@@ -41,10 +41,14 @@ def _render_home(request: Request, user: User, db: Session):
         .all()
     )
     ctx = _nav_context(request, user, db)
+    if user.role == "admin":
+        ctx["recommendation"] = None
+        ctx["reco_picks"] = []
     ctx.update(
         {
             "current_user": user,
             "products": products,
+            "hide_hero": user.role == "admin",
             "title": "Shop · SmartReco",
         }
     )
