@@ -1,5 +1,10 @@
+import json as jsonlib
+from collections.abc import AsyncIterator, Awaitable, Callable
+
+import anyio
+import time
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import String, func
 from sqlalchemy.orm import Session
 
@@ -458,6 +463,143 @@ def observability_page(
             "event_count": event_count,
             "langsmith_enabled": langsmith_enabled(),
             "current_trace_id": current_trace_id(),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Live activity (SSE stream of behavioral events)
+# ---------------------------------------------------------------------------
+
+EVENT_LABELS = {
+    "page_view": "Page view",
+    "product_view": "Product view",
+    "product_click": "Product click",
+    "category_click": "Category click",
+    "search": "Search",
+    "add_to_cart": "Add to cart",
+    "purchase": "Purchase",
+    "time_spent": "Time spent",
+}
+
+
+def _event_card(event: UserEvent, email: str | None) -> dict:
+    return {
+        "id": event.id,
+        "user_id": event.user_id,
+        "email": email or f"guest:{event.session_id}",
+        "event_type": event.event_type,
+        "label": EVENT_LABELS.get(event.event_type, event.event_type),
+        "entity_type": event.entity_type,
+        "entity_id": event.entity_id,
+        "payload": event.payload or {},
+        "occurred_at": event.occurred_at.isoformat(sep=" ", timespec="seconds"),
+    }
+
+
+def _query_events(db: Session, after_id: int, limit: int = 50) -> list[dict]:
+    rows = (
+        db.query(UserEvent, User.email)
+        .outerjoin(User, User.id == UserEvent.user_id)
+        .filter(UserEvent.id > after_id)
+        .order_by(UserEvent.id.asc())
+        .limit(limit)
+        .all()
+    )
+    return [_event_card(event, email) for event, email in rows]
+
+
+@router.get("/live", response_class=HTMLResponse)
+def live_activity_page(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    recent = _query_events(db, after_id=0, limit=50)
+    last_id = recent[-1]["id"] if recent else 0
+    return templates.TemplateResponse(
+        request,
+        "admin/live.html",
+        {
+            "current_user": user,
+            "recent_events": recent,
+            "last_event_id": last_id,
+            "event_types": sorted(EVENT_LABELS),
+        },
+    )
+
+
+@router.get("/events/recent")
+def live_activity_recent(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    limit: int = 50,
+):
+    rows = _query_events(db, after_id=0, limit=limit)
+    return {"events": rows, "last_id": rows[-1]["id"] if rows else 0}
+
+
+async def _event_stream(
+    db: Session,
+    after: int,
+    is_disconnected: Callable[[], Awaitable[bool]],
+) -> AsyncIterator[str]:
+    """Yield SSE frames for user_events newer than ``after``.
+
+    Polls the DB every second (indexed PK range scan) until the caller's
+    ``is_disconnected`` callable returns True. Both the endpoint and tests
+    drive this directly so the polling logic stays free of any HTTP coupling.
+    """
+    yield "retry: 3000\n\n"
+    last_id = after
+    while True:
+        if await is_disconnected():
+            return
+        events = await anyio.to_thread.run_sync(_query_events, db, last_id, 50)
+        for data in events:
+            last_id = data["id"]
+            yield f"data: {jsonlib.dumps(data)}\n\n"
+        await anyio.sleep(1.0)
+
+
+@router.get("/events/stream")
+async def live_activity_stream(
+    request: Request,
+    after: int = 0,
+    user: User = Depends(require_admin),
+):
+    """Server-Sent Events: pushes new user_events as they are ingested.
+
+    Polling is cheap (indexed PK range scan) and the feed is admin-only, so a
+    simple 1s poll is acceptable; a Postgres NOTIFY/LISTEN path could replace
+    it if traffic grows.
+    """
+
+    async def _disconnected() -> bool:
+        try:
+            with anyio.fail_after(0.15):
+                return await request.is_disconnected()
+        except TimeoutError:
+            return False
+
+    async def event_gen():
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            async for chunk in _event_stream(db, after, _disconnected):
+                yield chunk
+        finally:
+            db.close()
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     )
 

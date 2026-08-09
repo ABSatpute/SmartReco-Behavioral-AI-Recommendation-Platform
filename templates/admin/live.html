@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Live Activity · SmartReco{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Live Activity</h1>
+  <div class="page-head-actions">
+    <span class="live-status" id="live-status" data-state="connecting">
+      <span class="live-dot"></span> connecting
+    </span>
+    <button type="button" class="btn" id="btn-pause">Pause</button>
+    <button type="button" class="btn" id="btn-clear">Clear feed</button>
+    <a class="btn" href="/admin">← Dashboard</a>
+  </div>
+</div>
+
+<p class="muted">
+  Real-time behavioral events as they arrive from the tracker — every search,
+  product view, click, cart add, and page session across all users.
+</p>
+
+<div class="live-toolbar">
+  <label class="live-filter">
+    Event type
+    <select id="filter-type">
+      <option value="">All events</option>
+      {% for t in event_types %}
+        <option value="{{ t }}">{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="live-filter">
+    User
+    <input id="filter-user" type="search" placeholder="Filter by email…" style="width: 220px">
+  </label>
+  <label class="live-filter live-check">
+    <input id="toggle-autoscroll" type="checkbox" checked> Auto-scroll
+  </label>
+  <span class="muted" id="count-label">0 shown</span>
+</div>
+
+<div class="live-feed" id="live-feed">
+  {% for ev in recent_events %}
+    {% include "partials/event_card.html" %}
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var feed = document.getElementById("live-feed");
+    var status = document.getElementById("live-status");
+    var btnPause = document.getElementById("btn-pause");
+    var btnClear = document.getElementById("btn-clear");
+    var filterType = document.getElementById("filter-type");
+    var filterUser = document.getElementById("filter-user");
+    var toggleScroll = document.getElementById("toggle-autoscroll");
+    var countLabel = document.getElementById("count-label");
+    var lastEventId = {{ last_event_id }};
+    var paused = false;
+    var source = null;
+    var shown = 0;
+
+    function updateCount() {
+      var n = feed.querySelectorAll(".event-card:not([data-hidden='true'])").length;
+      countLabel.textContent = n + " shown";
+    }
+
+    function matches(ev) {
+      if (filterType.value && ev.event_type !== filterType.value) return false;
+      if (filterUser.value) {
+        var q = filterUser.value.toLowerCase();
+        var hay = (ev.email || "").toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    }
+
+    function visible(ev, node) {
+      node.setAttribute("data-hidden", matches(ev) ? "false" : "true");
+    }
+
+    function append(ev) {
+      var node = document.createElement("div");
+      node.className = "event-card";
+      node.setAttribute("data-event-type", ev.event_type);
+      var entity = ev.entity_id ? ev.entity_type + ": " + ev.entity_id : "—";
+      var payload = ev.payload && Object.keys(ev.payload).length
+        ? JSON.stringify(ev.payload) : "";
+      node.innerHTML =
+        '<div class="event-main">' +
+          '<span class="event-badge event-' + ev.event_type + '">' + (ev.label || ev.event_type) + '</span>' +
+          '<span class="event-user">' + (ev.email ? ev.email.replace(/&/g, "&amp;") : "—") + '</span>' +
+          '<span class="event-entity">' + entity.replace(/&/g, "&amp;") + '</span>' +
+          '<span class="event-time">' + ev.occurred_at + '</span>' +
+        '</div>' +
+        '<div class="event-payload">' + payload + '</div>';
+      visible(ev, node);
+      if (paused) {
+        node.setAttribute("data-queued", "true");
+        return;
+      }
+      var hadNew = true;
+      while (feed.children.length > 300) {
+        feed.removeChild(feed.firstChild);
+        hadNew = false;
+      }
+      feed.appendChild(node);
+      shown++;
+      if (toggleScroll.checked) feed.parentElement.scrollTop = feed.parentElement.scrollHeight;
+      updateCount();
+    }
+
+    function connect() {
+      if (source) return;
+      status.setAttribute("data-state", "connecting");
+      status.innerHTML = '<span class="live-dot"></span> connecting…';
+      source = new EventSource("/admin/events/stream?after=" + lastEventId);
+      source.onopen = function () {
+        status.setAttribute("data-state", "live");
+        status.innerHTML = '<span class="live-dot"></span> live';
+      };
+      source.onmessage = function (e) {
+        var ev = JSON.parse(e.data);
+        lastEventId = ev.id;
+        append(ev);
+      };
+      source.onerror = function () {
+        status.setAttribute("data-state", "offline");
+        status.innerHTML = '<span class="live-dot"></span> reconnecting…';
+        source.close();
+        source = null;
+        setTimeout(connect, 3000);
+      };
+    }
+
+    function disconnect() {
+      if (source) { source.close(); source = null; }
+      status.setAttribute("data-state", "paused");
+      status.innerHTML = '<span class="live-dot"></span> paused';
+    }
+
+    btnPause.addEventListener("click", function () {
+      paused = !paused;
+      if (paused) { disconnect(); btnPause.textContent = "Resume"; }
+      else {
+        btnPause.textContent = "Pause";
+        var queued = feed.querySelectorAll('[data-queued="true"]');
+        queued.forEach(function (n) { n.removeAttribute("data-queued"); });
+        connect();
+      }
+    });
+
+    btnClear.addEventListener("click", function () { feed.innerHTML = ""; updateCount(); });
+    filterType.addEventListener("change", refreshFilter);
+    filterUser.addEventListener("input", refreshFilter);
+
+    function refreshFilter() {
+      feed.querySelectorAll(".event-card").forEach(function (node) {
+        var queued = node.getAttribute("data-queued");
+        if (queued === "true") return;
+        var ev = { event_type: node.getAttribute("data-event-type"),
+                   email: node.querySelector(".event-user").textContent };
+        visible(ev, node);
+      });
+      updateCount();
+    }
+
+    connect();
+    updateCount();
+  })();
+</script>
+{% endblock %}

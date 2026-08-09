@@ -1,0 +1,9 @@
+<div class="event-card" data-hidden="false" data-event-type="{{ ev.event_type }}">
+  <div class="event-main">
+    <span class="event-badge event-{{ ev.event_type }}">{{ ev.label or ev.event_type }}</span>
+    <span class="event-user">{{ ev.email }}</span>
+    <span class="event-entity">{{ ev.entity_type or '—' }}{% if ev.entity_id %}: {{ ev.entity_id }}{% endif %}</span>
+    <span class="event-time">{{ ev.occurred_at }}</span>
+  </div>
+  <div class="event-payload">{{ ev.payload | tojson }}</div>
+</div>
