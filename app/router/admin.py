@@ -121,6 +121,7 @@ def _dashboard_stats(db: Session) -> dict:
         db.query(func.count(BrowseSession.id)).filter(BrowseSession.ended_at.is_(None)).scalar() or 0
     )
     cart_items = db.query(func.count(CartItem.id)).scalar() or 0
+    vector_count = _vector_count()
     digests_total = db.query(func.count(EmailDigest.id)).scalar() or 0
     digests_failed = (
         db.query(func.count(EmailDigest.id)).filter(EmailDigest.status == "failed").scalar() or 0
