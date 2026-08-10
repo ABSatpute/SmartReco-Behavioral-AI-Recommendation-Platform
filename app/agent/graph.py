@@ -29,6 +29,7 @@ class AgentState(TypedDict, total=False):
     started_at: float
 
     events: list  # serialized user events
+    event_ids: list  # DB ids of those events (for trace correlation)
     event_summary: str
     user_context: dict | None  # known demographics: age, gender
     profile: dict | None  # InterestProfile as dict

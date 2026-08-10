@@ -131,6 +131,7 @@ def run(
         "trigger_reason": _trigger_reason(db, user.id, events),
         "started_at": time.monotonic(),
         "events": [events_service.serialize(e) for e in events],
+        "event_ids": [e.id for e in events],
         "event_summary": events_service.summary_text(events),
         "user_context": {
             "age": user.age,

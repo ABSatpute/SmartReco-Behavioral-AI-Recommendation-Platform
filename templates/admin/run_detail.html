@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Run #{{ run.id }} · SmartReco{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Agent run #{{ run.id }}</h1>
+  <div class="page-head-actions">
+    <span class="muted">trace <code>{{ run.trace_id }}</code></span>
+    <a class="btn" href="/admin/observability">← Observability</a>
+  </div>
+</div>
+
+<section class="stat-grid">
+  <div class="stat"><span class="stat-value">{{ run.trigger }}</span><span class="stat-label">Trigger</span></div>
+  <div class="stat"><span class="stat-value">{{ run.duration_ms }}</span><span class="stat-label">Duration · ms</span></div>
+  <div class="stat"><span class="stat-value">{{ run.total_tokens }}</span><span class="stat-label">Tokens</span></div>
+  <div class="stat"><span class="stat-value">{{ run.llm_calls }}</span><span class="stat-label">LLM calls</span></div>
+  <div class="stat"><span class="stat-value">${{ "%.4f"|format(run.cost_usd) }}</span><span class="stat-label">Est. cost</span></div>
+  <div class="stat"><span class="stat-value">{{ run.created_at }}</span><span class="stat-label">UTC</span></div>
+</section>
+
+{% if run.error %}
+<div class="panel" style="border-color: var(--c-danger);">
+  <h3 class="danger">Error</h3>
+  <p><code>{{ run.error }}</code></p>
+</div>
+{% endif %}
+
+<section class="section">
+  <div class="section-head"><h2>Step timeline</h2></div>
+  <div class="table-scroll">
+  <table class="table">
+    <thead>
+      <tr><th>Step</th><th>Status</th><th class="num">Ms</th><th class="num">LLM calls</th><th class="num">Tokens</th><th>Model</th><th>Detail</th></tr>
+    </thead>
+    <tbody>
+      {% for s in run.steps %}
+      <tr>
+        <td><code>{{ s.node }}</code></td>
+        <td>
+          {% set st = s.status | default('ok') %}
+          {% if st == 'meta' %}<span class="muted">meta</span>
+          {% elif st == 'ok' %}<span class="badge badge-active">ok</span>
+          {% elif st in ('fallback',) %}<span class="badge badge-best">fallback</span>
+          {% elif st in ('skip',) %}<span class="badge badge-inactive">skip</span>
+          {% else %}<span class="danger">failed</span>{% endif %}
+        </td>
+        <td class="num">{{ s.duration_ms if s.duration_ms is defined else '—' }}</td>
+        <td class="num">{{ s.llm_delta if s.llm_delta is defined else '—' }}</td>
+        <td class="num">{{ s.tokens_delta if s.tokens_delta is defined else '—' }}</td>
+        <td><span class="muted">{{ s.model if s.model else '' }}</span></td>
+        <td>{{ s.note }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+{% if run.meta %}
+<section class="section">
+  <div class="section-head"><h2>Run metadata</h2></div>
+  <div class="table-scroll">
+  <table class="table">
+    <tbody>
+      <tr><th>Source</th><td>{{ run.meta.source or '—' }}</td></tr>
+      <tr><th>Trigger reason</th><td>{{ run.meta.trigger_reason or '—' }}</td></tr>
+      <tr><th>Input events</th><td>{{ run.meta.event_count or 0 }} event(s) fed the agent</td></tr>
+      <tr><th>Candidates</th><td>{{ run.meta.candidate_count or 0 }}</td></tr>
+      <tr><th>Result picks</th><td>{{ run.meta.result_picks if run.meta.result_picks is not none else '—' }}</td></tr>
+      <tr><th>Refine attempts</th><td>{{ run.meta.attempts }}</td></tr>
+      <tr><th>Fallback used</th><td>{{ 'yes' if run.meta.fallback_used else 'no' }}</td></tr>
+      <tr><th>Skipped</th><td>{{ run.meta.skipped or '—' }}</td></tr>
+      <tr><th>Models</th><td><span class="muted">{{ run.meta.analysis_model }} / {{ run.meta.llm_model }} / {{ run.meta.embedding_model }}</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{% if run.user_context %}
+<section class="section">
+  <div class="section-head"><h2>User context</h2></div>
+  <p class="muted">
+    {{ run.user_email or ('guest #' ~ run.user_id) }} ·
+    {% if run.user_context.age %}age {{ run.user_context.age }}{% else %}age unknown{% endif %} ·
+    {{ run.user_context.gender or 'gender unknown' }}
+  </p>
+</section>
+{% endif %}
+
+{% if run.events %}
+<section class="section">
+  <div class="section-head"><h2>Input events <span class="muted">(trace basis)</span></h2></div>
+  <div class="table-scroll">
+  <table class="table">
+    <thead>
+      <tr><th>ID</th><th>Type</th><th>Entity</th><th>Payload (truncated)</th><th>When</th></tr>
+    </thead>
+    <tbody>
+      {% for e in run.events %}
+      <tr>
+        <td>{{ e.id }}</td>
+        <td>{{ e.type }}</td>
+        <td>{{ e.entity_type or '-' }}{% if e.entity_id %}:{{ e.entity_id }}{% endif %}</td>
+        <td><span class="muted">{{ e.payload | string | truncate(80) }}</span></td>
+        <td>{{ e.occurred_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -30,10 +30,55 @@ QUALITY_THRESHOLD = 0.35
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
-def _append_step(state: dict, node: str, note: str) -> list:
+def _append_step(
+    state: dict,
+    node: str,
+    note: str,
+    *,
+    status: str = "ok",
+    started: float | None = None,
+    extra: dict | None = None,
+) -> list:
     steps = list(state.get("steps", []))
-    steps.append({"node": node, "note": note})
+    step: dict = {"node": node, "note": note, "status": status}
+    if started is not None:
+        step["duration_ms"] = int((time.monotonic() - started) * 1000)
+    prev = steps[-1] if steps else {}
+    llm_calls = state.get("llm_calls", 0)
+    total_tokens = state.get("total_tokens", 0)
+    step["llm_calls"] = llm_calls
+    step["tokens"] = total_tokens
+    step["llm_delta"] = max(0, llm_calls - prev.get("llm_calls", 0))
+    step["tokens_delta"] = max(0, total_tokens - prev.get("tokens", 0))
+    if extra:
+        step["extra"] = extra
+    steps.append(step)
     return steps
+
+
+def _meta_step(state: dict, result: dict | None, skip_reason: str | None) -> dict:
+    """Run-level envelope attached as the final step for observability."""
+    return {
+        "node": "meta",
+        "note": "agent run metadata",
+        "status": "meta",
+        "extra": {
+            "source": state.get("source"),
+            "trigger": state.get("trigger"),
+            "trigger_reason": state.get("trigger_reason"),
+            "fallback_used": state.get("fallback_used", False),
+            "attempts": state.get("attempts", 0),
+            "skipped": skip_reason
+            or (result is None and "no candidates to present"),
+            "event_count": len(state.get("events", [])),
+            "input_event_ids": state.get("event_ids", []),
+            "candidate_count": len(state.get("candidates", [])),
+            "result_picks": None if result is None else len(result["picks"]),
+            "llm_model": settings.llm_model,
+            "analysis_model": settings.analysis_model,
+            "embedding_model": settings.embedding_model,
+        },
+    }
 
 
 def _product_snapshot(product: Product) -> dict:
@@ -109,12 +154,14 @@ def _query_vector_fallback(db, query: str) -> list[dict]:
 # nodes
 # --------------------------------------------------------------------------- #
 def analyze(state: dict) -> dict:
+    started = time.monotonic()
     events = state.get("events", [])
     summary = state.get("event_summary", "")
     user_context = state.get("user_context")
     llm_calls = state.get("llm_calls", 0)
     total_tokens = state.get("total_tokens", 0)
     fallback_used = state.get("fallback_used", False)
+    status = "ok"
 
     try:
         content, usage = mesh.chat_meta(
@@ -135,6 +182,7 @@ def analyze(state: dict) -> dict:
         logger.warning("Analysis LLM failed, using heuristic profile: %s", exc)
         profile = heuristic_profile(events, summary).to_dict()
         fallback_used = True
+        status = "fallback"
         note = "analyzed events via heuristic fallback"
 
     return {
@@ -142,11 +190,12 @@ def analyze(state: dict) -> dict:
         "llm_calls": llm_calls,
         "total_tokens": total_tokens,
         "fallback_used": fallback_used,
-        "steps": _append_step(state, "analyze", note),
+        "steps": _append_step(state, "analyze", note, status=status, started=started),
     }
 
 
 def decide(state: dict) -> dict:
+    started = time.monotonic()
     profile = state.get("profile") or {}
     themes = profile.get("themes", [])
     keywords = profile.get("keywords", [])
@@ -164,20 +213,25 @@ def decide(state: dict) -> dict:
     if not queries or signal < settings.min_events_threshold:
         return {
             "skip_reason": "insufficient behavioral signal",
-            "steps": _append_step(state, "decide", f"skipped (signal={signal}, queries={len(queries)})"),
+            "steps": _append_step(
+                state, "decide", f"skipped (signal={signal}, queries={len(queries)})",
+                status="skip", started=started,
+            ),
         }
     return {
         "skip_reason": None,
         "queries": queries,
-        "steps": _append_step(state, "decide", f"queries: {queries}"),
+        "steps": _append_step(state, "decide", f"queries: {queries}", started=started),
     }
 
 
 def retrieve(state: dict) -> dict:
+    started = time.monotonic()
     queries = state.get("queries", [])
     fallback_used = state.get("fallback_used", False)
     seen = _seen_product_ids(state.get("events", []))
     merged: dict[int, dict] = {}
+    embed_failures = 0
 
     db = SessionLocal()
     try:
@@ -200,6 +254,7 @@ def retrieve(state: dict) -> dict:
             except mesh.MeshError as exc:
                 logger.warning("Embedding/retrieval failed, using keyword fallback: %s", exc)
                 fallback_used = True
+                embed_failures += 1
                 for snapshot in _query_vector_fallback(db, query):
                     pid = snapshot["id"]
                     existing = merged.get(pid)
@@ -227,11 +282,19 @@ def retrieve(state: dict) -> dict:
     return {
         "candidates": candidates,
         "fallback_used": fallback_used,
-        "steps": _append_step(state, "retrieve", f"{len(candidates)} candidates from {len(queries)} queries"),
+        "steps": _append_step(
+            state,
+            "retrieve",
+            f"{len(candidates)} candidates from {len(queries)} queries",
+            status="fallback" if fallback_used else "ok",
+            started=started,
+            extra={"embed_failures": embed_failures, "queries": len(queries)},
+        ),
     }
 
 
 def evaluate(state: dict) -> dict:
+    started = time.monotonic()
     profile = state.get("profile") or {}
     keywords = profile.get("keywords", [])
     candidates = list(state.get("candidates", []))
@@ -261,10 +324,21 @@ def evaluate(state: dict) -> dict:
 
     action = "refine" if need_refine else "generate"
     note = f"{len(candidates)} ranked; best={best['title'] if best else 'none'} composite={best['composite'] if best else 0}; -> {action}"
-    return {"candidates": candidates, "action": action, "steps": _append_step(state, "evaluate", note)}
+    return {
+        "candidates": candidates,
+        "action": action,
+        "steps": _append_step(
+            state,
+            "evaluate",
+            note,
+            started=started,
+            extra={"action": action, "attempts": attempts},
+        ),
+    }
 
 
 def refine(state: dict) -> dict:
+    started = time.monotonic()
     attempts = state.get("attempts", 0) + 1
     keywords = (state.get("profile") or {}).get("keywords", [])
     queries = list(state.get("queries", []))
@@ -287,11 +361,12 @@ def refine(state: dict) -> dict:
     return {
         "attempts": attempts,
         "queries": expanded,
-        "steps": _append_step(state, "refine", f"attempt {attempts}: queries={expanded}"),
+        "steps": _append_step(state, "refine", f"attempt {attempts}: queries={expanded}", started=started),
     }
 
 
 def generate(state: dict) -> dict:
+    started = time.monotonic()
     candidates = list(state.get("candidates", []))
     llm_calls = state.get("llm_calls", 0)
     total_tokens = state.get("total_tokens", 0)
@@ -299,7 +374,7 @@ def generate(state: dict) -> dict:
     if not candidates:
         return {
             "result": None,
-            "steps": _append_step(state, "generate", "no candidates to present"),
+            "steps": _append_step(state, "generate", "no candidates to present", status="skip", started=started),
         }
 
     profile = state.get("profile") or {}
@@ -353,14 +428,14 @@ def generate(state: dict) -> dict:
             "result": result,
             "llm_calls": llm_calls,
             "total_tokens": total_tokens,
-            "steps": _append_step(state, "generate", "fallback picks used (LLM unreliable)"),
+            "steps": _append_step(state, "generate", "fallback picks used (LLM unreliable)", status="fallback", started=started),
         }
 
     return {
         "result": result,
         "llm_calls": llm_calls,
         "total_tokens": total_tokens,
-        "steps": _append_step(state, "generate", f"{len(result['picks'])} picks grounded in candidates"),
+        "steps": _append_step(state, "generate", f"{len(result['picks'])} picks grounded in candidates", started=started),
     }
 
 
@@ -369,19 +444,29 @@ def store(state: dict) -> dict:
     duration_ms = int((time.monotonic() - started) * 1000) if started else 0
 
     if state.get("skip_reason"):
-        steps = _append_step(state, "store", f"recorded skipped run ({state['skip_reason']})")
+        steps = _append_step(
+            state, "store", f"recorded skipped run ({state['skip_reason']})",
+            status="skip", started=started,
+        )
+        steps.append(_meta_step(state, None, state["skip_reason"]))
         _write_run(state, duration_ms, error=f"skipped: {state['skip_reason']}", steps=steps)
         return {"run_id": None, "steps": steps}
 
     result = state.get("result")
     if result is None:
-        steps = _append_step(state, "store", "recorded run without recommendation")
+        steps = _append_step(
+            state, "store", "recorded run without recommendation",
+            status="skip", started=started,
+        )
+        steps.append(_meta_step(state, None, None))
         _write_run(state, duration_ms, error="no candidates to present", steps=steps)
         return {"run_id": None, "steps": steps}
 
     steps = _append_step(
-        state, "store", f"stored recommendation with {len(result['picks'])} items"
+        state, "store", f"stored recommendation with {len(result['picks'])} items",
+        started=started,
     )
+    steps.append(_meta_step(state, result, None))
 
     db = SessionLocal()
     try:

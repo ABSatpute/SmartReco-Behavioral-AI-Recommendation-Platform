@@ -4,53 +4,143 @@
 
 {% block content %}
 <div class="page-head">
-  <h1>Observability</h1>
-  <a class="btn" href="/admin">← Dashboard</a>
+  <h1>Agent observability</h1>
+  <div class="page-head-actions">
+    <span class="live-pill" title="LangSmith tracing state">
+      {% if langsmith_enabled %}LangSmith <span style="color: var(--c-success)">on</span>{% else %}LangSmith off{% endif %}
+    </span>
+    <span class="muted">trace <code>{{ current_trace_id or '—' }}</code></span>
+    <a class="btn" href="/admin">← Dashboard</a>
+  </div>
 </div>
 
-<p>
-  LangSmith tracing:
-  <strong>{% if langsmith_enabled %}enabled{% else %}disabled (no API key){% endif %}</strong> ·
-  Request trace id: <code>{{ current_trace_id or '—' }}</code>
-</p>
+<form class="filter-bar" method="get" action="/admin/observability">
+  <label>Range
+    <select name="range">
+      {% for key, label in [('24h','24h'), ('7d','7d'), ('30d','30d'), ('all','All time')] %}
+        <option value="{{ key }}" {% if range_selected == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Trigger
+    <select name="trigger">
+      <option value="">Any</option>
+      {% for t in trigger_options %}
+        <option value="{{ t }}" {% if trigger_selected == t %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="">Any</option>
+      <option value="ok" {% if status_selected == 'ok' %}selected{% endif %}>ok</option>
+      <option value="failed" {% if status_selected == 'failed' %}selected{% endif %}>failed</option>
+    </select>
+  </label>
+  <button class="btn" type="submit">Apply</button>
+  <span class="muted">{{ metrics_json.window_label }}</span>
+</form>
 
-<div class="stat-grid">
-  <div class="stat"><span class="stat-value">{{ total_runs }}</span><span class="stat-label">Total agent runs</span></div>
-  <div class="stat"><span class="stat-value">{{ successful_runs }}</span><span class="stat-label">Successful</span></div>
-  <div class="stat"><span class="stat-value">{{ failed_runs }}</span><span class="stat-label">Failed</span></div>
-  <div class="stat"><span class="stat-value">{{ event_count }}</span><span class="stat-label">Behavioral events</span></div>
-</div>
+<section class="stat-grid" style="margin-top:1rem">
+  <div class="stat"><span class="stat-value">{{ summary.total_runs }}</span><span class="stat-label">Runs in window</span></div>
+  <div class="stat"><span class="stat-value">{{ summary.success_rate }}%</span><span class="stat-label">Success rate</span></div>
+  <div class="stat"><span class="stat-value">{{ summary.failed_runs }}</span><span class="stat-label">Failed</span></div>
+  <div class="stat"><span class="stat-value">{{ summary.avg_duration_ms }}</span><span class="stat-label">Avg latency · ms <span class="muted">(p95 {{ summary.p95_duration_ms }} ms)</span></span></div>
+  <div class="stat"><span class="stat-value">{{ summary.avg_tokens }}</span><span class="stat-label">Avg tokens · run</span></div>
+  <div class="stat"><span class="stat-value">${{ "%.4f"|format(summary.est_cost_usd) }}</span><span class="stat-label">Est. cost <span class="muted">(blended rate)</span></span></div>
+  <div class="stat"><span class="stat-value">{{ summary.fallback_runs }}</span><span class="stat-label">Fallback runs</span></div>
+  <div class="stat"><span class="stat-value">{{ summary.events_ingested }}</span><span class="stat-label">Events ingested <span class="muted">({{ summary.events_24h }} last 24h)</span></span></div>
+  <div class="stat"><span class="stat-value">{{ summary.avg_llm_calls }}</span><span class="stat-label">Avg LLM calls · run</span></div>
+</section>
 
-<h2>Recent agent runs</h2>
-<div class="table-scroll">
-<table class="table">
-  <thead>
-    <tr>
-      <th class="num">ID</th><th>Trace id</th><th>Trigger</th><th class="num">LLM calls</th><th class="num">Tokens</th><th class="num">Ms</th><th>Status</th><th>When</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for run in recent_runs %}
-    <tr>
-      <td class="num">{{ run.id }}</td>
-      <td><code>{{ run.trace_id }}</code></td>
-      <td>{{ run.trigger }}</td>
-      <td class="num">{{ run.llm_calls }}</td>
-      <td class="num">{{ run.total_tokens }}</td>
-      <td class="num">{{ run.duration_ms }}</td>
-      <td>
-        {% if run.error %}
-          <span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>
-        {% else %}
-          ok
-        {% endif %}
-      </td>
-      <td>{{ run.created_at | string }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="8"><span class="muted">No agent runs recorded yet.</span></td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
+<section class="dash-grid">
+  <div class="panel">
+    <h3>Runs · ok vs failed</h3>
+    <div class="chart" data-chart="runsSeries"></div>
+  </div>
+  <div class="panel">
+    <h3>Tokens · per bucket</h3>
+    <div class="chart" data-chart="tokensSeries"></div>
+  </div>
+  <div class="panel">
+    <h3>Est. cost · per bucket</h3>
+    <div class="chart" data-chart="costSeries"></div>
+  </div>
+  <div class="panel">
+    <h3>Step latency by node · avg ms</h3>
+    <div class="chart" data-chart="nodeLatency"></div>
+  </div>
+  <div class="panel">
+    <h3>Token usage by node · avg / step</h3>
+    <div class="chart" data-chart="nodeTokens"></div>
+  </div>
+  <div class="panel">
+    <h3>Step failures by node</h3>
+    <div class="chart" data-chart="nodeFailures"></div>
+  </div>
+  <div class="panel">
+    <h3>Failure reasons</h3>
+    <div class="chart" data-chart="errorMix"></div>
+  </div>
+  <div class="panel">
+    <h3>Run trigger mix</h3>
+    <div class="chart" data-chart="triggerMix"></div>
+  </div>
+  <div class="panel">
+    <h3>Behavioral event mix</h3>
+    <div class="chart" data-chart="eventMix"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Observability insights</h2>
+  </div>
+  <ul class="insight-list" data-insights></ul>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Recent agent runs</h2>
+    <span class="muted">matching filters</span>
+  </div>
+  <div class="table-scroll">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Run</th><th>Trace</th><th>Trigger</th><th class="num">LLM calls</th><th class="num">Tokens</th><th class="num">Ms</th><th class="num">Est. cost</th><th>Status</th><th>When</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in recent_runs %}
+      <tr>
+        <td><a href="/admin/runs/{{ run.id }}">#{{ run.id }}</a></td>
+        <td><code>{{ run.trace_id }}</code></td>
+        <td>{{ run.trigger }}</td>
+        <td class="num">{{ run.llm_calls }}</td>
+        <td class="num">{{ run.total_tokens }}</td>
+        <td class="num">{{ run.duration_ms }}</td>
+        <td class="num">${{ "%.4f"|format(run.cost_usd) }}</td>
+        <td>
+          {% if run.error %}
+            {% if run.error.startswith('skipped') %}<span class="badge badge-inactive">skipped</span>
+            {% else %}<span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>{% endif %}
+          {% else %}
+            <span class="badge badge-active">ok</span>
+          {% endif %}
+        </td>
+        <td>{{ run.created_at | string }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8"><span class="muted">No agent runs match these filters.</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script id="observability-data" type="application/json">{{ metrics_json | tojson }}</script>
+<script src="{{ url_for('static', path='/js/observability.js') }}?v=1"></script>
 {% endblock %}

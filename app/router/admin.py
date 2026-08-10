@@ -24,6 +24,7 @@ from app.models import (
 )
 from app.observability import current_trace_id, langsmith_enabled
 from app.services import auth as auth_service
+from app.services import observability_metrics
 from app.services import products as product_service
 from app.templating import templates
 from app.utils import utcnow_naive
@@ -715,31 +716,89 @@ def observability_page(
     request: Request,
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
+    range: str = "7d",
+    trigger: str = "",
+    status: str = "",
 ):
-    recent_runs = (
-        db.query(AgentRun)
-        .order_by(AgentRun.created_at.desc())
-        .limit(50)
-        .all()
+    """Agent observability dashboard: KPIs, charts, filters, recent runs."""
+    metrics = observability_metrics.agent_metrics(
+        db, range_key=range, trigger=trigger or None, status=status or None
     )
-    run_counts = (
-        db.query(AgentRun).filter(AgentRun.error.is_(None)).count(),
-        db.query(AgentRun).filter(AgentRun.error.isnot(None)).count(),
-    )
-    event_count = db.query(UserEvent).count()
+
+    hours = observability_metrics.RANGE_HOURS.get(range, 7 * 24)
+    start = None if range == "all" else utcnow_naive() - timedelta(hours=hours)
+    recent_q = db.query(AgentRun)
+    if start is not None:
+        recent_q = recent_q.filter(AgentRun.created_at >= start)
+    if trigger:
+        recent_q = recent_q.filter(AgentRun.trigger == trigger)
+    if status == "ok":
+        recent_q = recent_q.filter(AgentRun.error.is_(None))
+    elif status == "failed":
+        recent_q = recent_q.filter(AgentRun.error.isnot(None))
+    recent_runs = [
+        {
+            "id": r.id,
+            "trace_id": r.trace_id,
+            "trigger": r.trigger,
+            "llm_calls": r.llm_calls,
+            "total_tokens": r.total_tokens,
+            "duration_ms": r.duration_ms,
+            "error": r.error,
+            "created_at": r.created_at,
+            "cost_usd": observability_metrics.estimate_run_cost(r),
+        }
+        for r in recent_q.order_by(AgentRun.created_at.desc()).limit(30).all()
+    ]
+
     return templates.TemplateResponse(
         request,
         "admin/observability.html",
         {
             "current_user": user,
+            "metrics_json": metrics,
+            "summary": metrics["summary"],
             "recent_runs": recent_runs,
-            "total_runs": sum(run_counts),
-            "successful_runs": run_counts[0],
-            "failed_runs": run_counts[1],
-            "event_count": event_count,
+            "range_selected": range,
+            "trigger_selected": trigger,
+            "status_selected": status,
+            "trigger_options": ["event_threshold", "digest", "manual", "auto"],
             "langsmith_enabled": langsmith_enabled(),
             "current_trace_id": current_trace_id(),
         },
+    )
+
+
+@router.get("/observability/stats")
+def observability_stats(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+    range: str = "7d",
+    trigger: str = "",
+    status: str = "",
+):
+    """JSON snapshot of the same aggregations the dashboard renders (range-aware)."""
+    return observability_metrics.agent_metrics(
+        db, range_key=range, trigger=trigger or None, status=status or None
+    )
+
+
+@router.get("/runs/{run_id}", response_class=HTMLResponse)
+def run_detail_page(
+    request: Request,
+    run_id: int,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Full trace for a single agent run: steps timeline, metadata, inputs."""
+    detail = observability_metrics.run_detail(db, run_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Agent run not found")
+    return templates.TemplateResponse(
+        request,
+        "admin/run_detail.html",
+        {"current_user": user, "run": detail},
     )
 
 
