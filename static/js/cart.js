@@ -52,6 +52,19 @@
       .catch(function () { toast("Could not add item to cart", "error"); });
   }
 
+  function buyNow(productId) {
+    api("/api/cart/add", "POST", { product_id: Number(productId), quantity: 1 })
+      .then(function (data) {
+        if (data && data.ok) {
+          setBadge(data.count);
+          window.location.href = baseUrl + "/cart";
+        } else if (data && data.error) {
+          toast(data.error, "error");
+        }
+      })
+      .catch(function () { toast("Could not add item to cart", "error"); });
+  }
+
   function updateQty(productId, delta) {
     var line = document.querySelector('[data-cart-line="' + productId + '"]');
     var valueEl = document.querySelector('[data-qty-value="' + productId + '"]');
@@ -85,6 +98,9 @@
     document.addEventListener("click", function (e) {
       var addBtn = e.target.closest ? e.target.closest("[data-add-to-cart]") : null;
       if (addBtn) { addToCart(addBtn.getAttribute("data-add-to-cart")); return; }
+
+      var bnow = e.target.closest ? e.target.closest("[data-buy-now]") : null;
+      if (bnow) { buyNow(bnow.getAttribute("data-buy-now")); return; }
 
       var chg = e.target.closest ? e.target.closest("[data-cart-change]") : null;
       if (chg) {

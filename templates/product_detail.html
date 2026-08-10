@@ -51,7 +51,7 @@
     {% endif %}
     <button class="btn btn-cart" data-add-to-cart="{{ product.id }}">Add to cart</button>
     {% if product.product_url %}
-      <a class="btn btn-buy" href="{{ product.product_url }}" target="_blank" rel="noopener">Buy now →</a>
+      <button class="btn btn-buy" data-buy-now="{{ product.id }}">Buy now →</button>
     {% endif %}
     <p class="buybox-note">You'll get personalized picks as you browse.</p>
     <a class="btn" href="/">Continue shopping</a>
