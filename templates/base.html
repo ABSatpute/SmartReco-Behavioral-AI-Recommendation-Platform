@@ -59,12 +59,6 @@
                 <span class="account-menu-head">Shop</span>
                 <a class="account-menu-link" href="/">All products</a>
                 <a class="account-menu-link" href="/search">Search all</a>
-                {% if nav_categories %}
-                  <span class="account-menu-head">Categories</span>
-                  {% for cat in nav_categories %}
-                    <a class="account-menu-link" href="/search?category={{ cat | urlencode }}">{{ cat }}</a>
-                  {% endfor %}
-                {% endif %}
               {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">
