@@ -1,21 +1,32 @@
 import json as jsonlib
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import datetime, timedelta
 
 import anyio
-import time
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import String, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require_admin
 from app.flash import set_flash
-from app.models import AgentRun, Product, Recommendation, User, UserEvent
+from app.models import (
+    AgentRun,
+    BrowseSession,
+    CartItem,
+    EmailDigest,
+    Product,
+    Recommendation,
+    User,
+    UserEvent,
+)
 from app.observability import current_trace_id, langsmith_enabled
 from app.services import auth as auth_service
 from app.services import products as product_service
 from app.templating import templates
+from app.utils import utcnow_naive
 from app.vector_store import get_vector_store
 
 router = APIRouter(prefix="/admin")
@@ -28,12 +39,36 @@ def _vector_count() -> int | None:
         return None
 
 
-@router.get("", response_class=HTMLResponse)
-def admin_dashboard(
-    request: Request,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
-):
+def _day_key(d) -> str:
+    return d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)
+
+
+def _daily_series(db: Session, model, colname: str, days: int) -> dict:
+    """Count rows per calendar day for the last ``days`` days."""
+    start = (utcnow_naive() - timedelta(days=days - 1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    col = getattr(model, colname)
+    rows = (
+        db.query(func.date(col).label("day"), func.count(model.id))
+        .filter(col >= start)
+        .group_by(func.date(col))
+        .all()
+    )
+    by_day = {_day_key(d): c for d, c in rows}
+    labels, counts = [], []
+    for i in range(days):
+        day = start + timedelta(days=i)
+        labels.append(day.strftime("%b %d"))
+        counts.append(by_day.get(_day_key(day), 0))
+    return {"labels": labels, "counts": counts}
+
+
+def _dashboard_stats(db: Session) -> dict:
+    now = utcnow_naive()
+    day_ago = now - timedelta(days=1)
+    week_ago = now - timedelta(days=7)
+
     total_products = db.query(func.count(Product.id)).scalar() or 0
     active_products = (
         db.query(func.count(Product.id)).filter(Product.is_active.is_(True)).scalar() or 0
@@ -45,6 +80,246 @@ def admin_dashboard(
     failed_runs = (
         db.query(func.count(AgentRun.id)).filter(AgentRun.error.isnot(None)).scalar() or 0
     )
+
+    users_today = db.query(func.count(User.id)).filter(User.created_at >= day_ago).scalar() or 0
+    users_week = db.query(func.count(User.id)).filter(User.created_at >= week_ago).scalar() or 0
+    events_24h = (
+        db.query(func.count(UserEvent.id)).filter(UserEvent.occurred_at >= day_ago).scalar() or 0
+    )
+    events_7d = (
+        db.query(func.count(UserEvent.id)).filter(UserEvent.occurred_at >= week_ago).scalar() or 0
+    )
+    adds_24h = (
+        db.query(func.count(UserEvent.id))
+        .filter(UserEvent.event_type == "add_to_cart", UserEvent.occurred_at >= day_ago)
+        .scalar() or 0
+    )
+    views_24h = (
+        db.query(func.count(UserEvent.id))
+        .filter(UserEvent.event_type == "product_view", UserEvent.occurred_at >= day_ago)
+        .scalar() or 0
+    )
+    purchases = (
+        db.query(func.count(UserEvent.id)).filter(UserEvent.event_type == "purchase").scalar() or 0
+    )
+    searches = (
+        db.query(func.count(UserEvent.id)).filter(UserEvent.event_type == "search").scalar() or 0
+    )
+
+    active_users_7d = (
+        db.query(func.count(func.distinct(UserEvent.user_id)))
+        .filter(UserEvent.user_id.isnot(None), UserEvent.occurred_at >= week_ago)
+        .scalar() or 0
+    )
+
+    fids = db.query(func.count(func.distinct(UserEvent.user_id))).filter(
+        UserEvent.user_id.isnot(None)
+    ).scalar() or 0
+
+    sessions_total = db.query(func.count(BrowseSession.id)).scalar() or 0
+    sessions_active = (
+        db.query(func.count(BrowseSession.id)).filter(BrowseSession.ended_at.is_(None)).scalar() or 0
+    )
+    cart_items = db.query(func.count(CartItem.id)).scalar() or 0
+    digests_total = db.query(func.count(EmailDigest.id)).scalar() or 0
+    digests_failed = (
+        db.query(func.count(EmailDigest.id)).filter(EmailDigest.status == "failed").scalar() or 0
+    )
+
+    events_series = _daily_series(db, UserEvent, "occurred_at", 14)
+    users_series = _daily_series(db, User, "created_at", 14)
+    reco_series = _daily_series(db, Recommendation, "created_at", 14)
+
+    run_starts = (now - timedelta(days=13)).replace(hour=0, minute=0, second=0, microsecond=0)
+    run_ok = (
+        db.query(func.date(AgentRun.created_at).label("day"), func.count(AgentRun.id))
+        .filter(AgentRun.created_at >= run_starts, AgentRun.error.is_(None))
+        .group_by(func.date(AgentRun.created_at))
+        .all()
+    )
+    run_fail = (
+        db.query(func.date(AgentRun.created_at).label("day"), func.count(AgentRun.id))
+        .filter(AgentRun.created_at >= run_starts, AgentRun.error.isnot(None))
+        .group_by(func.date(AgentRun.created_at))
+        .all()
+    )
+    ok_by_day = {_day_key(d): c for d, c in run_ok}
+    fail_by_day = {_day_key(d): c for d, c in run_fail}
+    runs_labels, runs_ok, runs_fail = [], [], []
+    for i in range(14):
+        day = run_starts + timedelta(days=i)
+        key = _day_key(day)
+        runs_labels.append(day.strftime("%b %d"))
+        runs_ok.append(ok_by_day.get(key, 0))
+        runs_fail.append(fail_by_day.get(key, 0))
+
+    mix_rows = (
+        db.query(UserEvent.event_type, func.count(UserEvent.id))
+        .group_by(UserEvent.event_type)
+        .order_by(func.count(UserEvent.id).desc())
+        .all()
+    )
+    event_mix = [{"name": k or "other", "value": v} for k, v in mix_rows]
+
+    hour_rows = (
+        db.query(func.extract("hour", UserEvent.occurred_at).label("h"), func.count(UserEvent.id))
+        .group_by(func.extract("hour", UserEvent.occurred_at))
+        .all()
+    )
+    hour_hist = [0] * 24
+    for h, c in hour_rows:
+        if h is None:
+            continue
+        try:
+            hour_hist[int(h) % 24] += c
+        except (TypeError, ValueError):
+            pass
+
+    top_viewed = (
+        db.query(UserEvent.entity_id, func.count(UserEvent.id))
+        .filter(UserEvent.event_type == "product_view", UserEvent.entity_id.isnot(None))
+        .group_by(UserEvent.entity_id)
+        .order_by(func.count(UserEvent.id).desc())
+        .limit(8)
+        .all()
+    )
+    ids = [int(eid) for eid, _ in top_viewed if str(eid).isdigit()]
+    titles: dict[str, str] = {}
+    if ids:
+        for p in db.query(Product).filter(Product.id.in_(ids)).all():
+            titles[str(p.id)] = p.title
+    top_products = [
+        {"name": titles.get(str(eid), eid), "value": c} for eid, c in top_viewed
+    ]
+
+    top_cats = (
+        db.query(UserEvent.entity_id, func.count(UserEvent.id))
+        .filter(UserEvent.event_type == "category_click", UserEvent.entity_id.isnot(None))
+        .group_by(UserEvent.entity_id)
+        .order_by(func.count(UserEvent.id).desc())
+        .limit(8)
+        .all()
+    )
+    top_cats_viewed = [{"name": name, "value": c} for name, c in top_cats]
+
+    catalog_rows = (
+        db.query(Product.category, func.count(Product.id))
+        .filter(Product.is_active.is_(True))
+        .group_by(Product.category)
+        .order_by(func.count(Product.id).desc())
+        .limit(10)
+        .all()
+    )
+    catalog_cats = [{"name": name or "uncategorized", "value": c} for name, c in catalog_rows]
+
+    token_sum = db.query(func.sum(AgentRun.total_tokens)).scalar() or 0
+    llm_sum = db.query(func.sum(AgentRun.llm_calls)).scalar() or 0
+    avg_tokens = db.query(func.avg(AgentRun.total_tokens)).scalar()
+    avg_duration = db.query(func.avg(AgentRun.duration_ms)).scalar()
+
+    success_rate = (
+        round((total_runs - failed_runs) / total_runs * 100, 1) if total_runs else None
+    )
+    peak_hour = max(hour_hist) if any(hour_hist) else None
+    peak_hour_idx = hour_hist.index(peak_hour) if peak_hour is not None else None
+    peak_day = max(events_series["counts"]) if any(events_series["counts"]) else None
+    peak_day_idx = (
+        events_series["counts"].index(peak_day) if peak_day is not None else None
+    )
+    top_cat_name = top_cats_viewed[0]["name"] if top_cats_viewed else None
+    top_product_name = top_products[0]["name"] if top_products else None
+
+    insights = []
+    if total_users:
+        pct = round(active_users_7d / total_users * 100, 1)
+        insights.append(
+            f"{active_users_7d} of {total_users} registered users ({pct}%) were active in "
+            "the last 7 days."
+        )
+    if peak_hour_idx is not None:
+        fmt_hour = f"{peak_hour_idx:02d}:00"
+        insights.append(f"Most activity happens around {fmt_hour} UTC.")
+    if peak_day_idx is not None:
+        insights.append(f"Busiest day in the last 14: {events_series['labels'][peak_day_idx]}.")
+    if top_cat_name:
+        insights.append(f"Most-explored category: {top_cat_name!r}.")
+    if top_product_name:
+        insights.append(f"Most-viewed product: {top_product_name!r}.")
+    if views_24h and adds_24h:
+        insights.append(
+            f"In the last 24h, 1 in {round(views_24h / adds_24h, 1)} product views turned "
+            "into an add-to-cart."
+        )
+    if total_runs:
+        insights.append(
+            f"Recommendation agent: {success_rate}% success, "
+            f"{round(avg_tokens or 0)} tokens / run on average."
+        )
+
+    return {
+        "totals": {
+            "total_products": total_products,
+            "active_products": active_products,
+            "inactive_products": total_products - active_products,
+            "total_users": total_users,
+            "events": event_count,
+            "reco_count": reco_count,
+            "runs": total_runs,
+            "failed_runs": failed_runs,
+            "successful_runs": total_runs - failed_runs,
+            "vector_count": vector_count,
+        },
+        "delta": {
+            "users_today": users_today,
+            "users_week": users_week,
+            "events_24h": events_24h,
+            "events_7d": events_7d,
+            "adds_24h": adds_24h,
+            "views_24h": views_24h,
+            "purchases": purchases,
+            "searches": searches,
+        },
+        "engagement": {
+            "active_users_7d": active_users_7d,
+            "engaged_users": fids,
+            "sessions_total": sessions_total,
+            "sessions_active": sessions_active,
+            "cart_items": cart_items,
+            "digests_total": digests_total,
+            "digests_failed": digests_failed,
+        },
+        "series": {
+            "events": events_series,
+            "users": users_series,
+            "reco": reco_series,
+            "runs": {"labels": runs_labels, "ok": runs_ok, "fail": runs_fail},
+        },
+        "mixes": {
+            "event_mix": event_mix,
+            "hour_hist": hour_hist,
+            "top_products": top_products,
+            "top_cats_viewed": top_cats_viewed,
+            "catalog_cats": catalog_cats,
+        },
+        "llm": {
+            "token_sum": token_sum,
+            "llm_sum": llm_sum,
+            "avg_tokens": round(avg_tokens, 1) if avg_tokens is not None else None,
+            "avg_duration": round(avg_duration, 1) if avg_duration is not None else None,
+            "success_rate": success_rate,
+        },
+        "insights": insights,
+        "generated_at": now.isoformat(timespec="seconds"),
+    }
+
+
+@router.get("", response_class=HTMLResponse)
+def admin_dashboard(
+    request: Request,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    stats = _dashboard_stats(db)
 
     recent_runs = (
         db.query(AgentRun).order_by(AgentRun.created_at.desc()).limit(6).all()
@@ -58,20 +333,20 @@ def admin_dashboard(
         "admin/dashboard.html",
         {
             "current_user": user,
-            "total_products": total_products,
-            "active_products": active_products,
-            "inactive_products": total_products - active_products,
-            "total_users": total_users,
-            "event_count": event_count,
-            "reco_count": reco_count,
-            "total_runs": total_runs,
-            "failed_runs": failed_runs,
-            "successful_runs": total_runs - failed_runs,
-            "vector_count": _vector_count(),
+            "stats": stats,
+            "dash_json": jsonlib.dumps(stats),
             "recent_runs": recent_runs,
             "recent_products": recent_products,
         },
     )
+
+
+@router.get("/api/dashboard", response_class=JSONResponse)
+def dashboard_api(
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return _dashboard_stats(db)
 
 
 def _parse_tags(raw: str) -> list[str]:

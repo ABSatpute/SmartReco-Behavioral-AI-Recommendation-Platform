@@ -5,45 +5,122 @@
 {% block content %}
 <div class="page-head">
   <h1>Dashboard</h1>
-  <div class="actions">
-    <a class="btn" href="/admin/users">Users →</a>
-    <a class="btn" href="/admin/live">Live activity →</a>
-    <a class="btn" href="/admin/observability">Agent observability →</a>
+  <div class="page-head-actions">
+    <span class="live-pill" title="Refreshes automatically"><span class="live-dot"></span> Live · updated <span data-updated>now</span></span>
+    <a class="btn" href="/admin/users">Users</a>
+    <a class="btn" href="/admin/live">Live activity</a>
+    <a class="btn" href="/admin/observability">Agent observability</a>
   </div>
 </div>
 
-<div class="stat-grid">
-  <div class="stat">
-    <span class="stat-value">{{ active_products }}</span>
-    <span class="stat-label">Active products</span>
+<section class="kpi-grid">
+  <article class="kpi" data-kpi="totals.active_products" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Active products</div>
+    <div class="kpi-sub" data-sub-path="totals.total_products" data-sub-format="int" data-sub-prefix="of " data-sub-suffix=" in catalog"></div>
+  </article>
+  <article class="kpi" data-kpi="totals.total_users" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Registered users</div>
+    <div class="kpi-sub" data-sub-path="delta.users_week" data-sub-format="int" data-sub-prefix="+" data-sub-suffix=" in 7d"></div>
+  </article>
+  <article class="kpi" data-kpi="totals.events" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Behavioral events</div>
+    <div class="kpi-sub" data-sub-path="delta.events_24h" data-sub-format="int" data-sub-suffix=" in last 24h"></div>
+  </article>
+  <article class="kpi" data-kpi="delta.adds_24h" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Add to cart · 24h</div>
+    <div class="kpi-sub" data-sub-path="delta.purchases" data-sub-format="int" data-sub-suffix=" purchases all-time"></div>
+  </article>
+  <article class="kpi" data-kpi="totals.reco_count" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Recommendations</div>
+    <div class="kpi-sub" data-sub-path="delta.events_7d" data-sub-format="int" data-sub-suffix=" events in 7d"></div>
+  </article>
+  <article class="kpi" data-kpi="totals.runs" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Agent runs</div>
+    <div class="kpi-sub" data-sub-path="totals.successful_runs" data-sub-format="int" data-sub-suffix=" ok"></div>
+  </article>
+  <article class="kpi" data-kpi="llm.success_rate" data-format="pct">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Run success</div>
+    <div class="kpi-sub" data-sub-path="totals.failed_runs" data-sub-format="int" data-sub-suffix=" failed runs"></div>
+  </article>
+  <article class="kpi" data-kpi="llm.avg_tokens" data-format="decimal">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Avg tokens / run</div>
+    <div class="kpi-sub" data-sub-path="llm.avg_duration" data-sub-format="int" data-sub-suffix=" ms avg"></div>
+  </article>
+  <article class="kpi" data-kpi="engagement.active_users_7d" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Active users · 7d</div>
+    <div class="kpi-sub" data-sub-path="totals.total_users" data-sub-format="int" data-sub-prefix="of " data-sub-suffix=" users"></div>
+  </article>
+  <article class="kpi" data-kpi="engagement.sessions_active" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Open sessions</div>
+    <div class="kpi-sub" data-sub-path="engagement.sessions_total" data-sub-format="int" data-sub-suffix=" total"></div>
+  </article>
+  <article class="kpi" data-kpi="engagement.cart_items" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Cart lines</div>
+    <div class="kpi-sub" data-sub-path="delta.searches" data-sub-format="int" data-sub-suffix=" searches all-time"></div>
+  </article>
+  <article class="kpi" data-kpi="totals.vector_count" data-format="int">
+    <div class="kpi-value">—</div>
+    <div class="kpi-label">Vectors (Pinecone)</div>
+    <div class="kpi-sub">semantic index</div>
+  </article>
+</section>
+
+<section class="dash-grid">
+  <div class="panel">
+    <h3>Events · last 14 days</h3>
+    <div class="chart" data-chart="eventsSeries"></div>
   </div>
-  <div class="stat">
-    <span class="stat-value">{{ inactive_products }}</span>
-    <span class="stat-label">Inactive / archived</span>
+  <div class="panel">
+    <h3>Agent runs · last 14 days</h3>
+    <div class="chart" data-chart="runsSeries"></div>
   </div>
-  <div class="stat">
-    <span class="stat-value">{{ total_users }}</span>
-    <span class="stat-label">Registered users</span>
+  <div class="panel">
+    <h3>New signups · last 14 days</h3>
+    <div class="chart" data-chart="usersSeries"></div>
   </div>
-  <div class="stat">
-    <span class="stat-value">{{ event_count }}</span>
-    <span class="stat-label">Behavioral events</span>
+  <div class="panel">
+    <h3>Recommendations · last 14 days</h3>
+    <div class="chart" data-chart="recoSeries"></div>
   </div>
-  <div class="stat">
-    <span class="stat-value">{{ reco_count }}</span>
-    <span class="stat-label">Recommendations</span>
+  <div class="panel">
+    <h3>Event mix · all-time</h3>
+    <div class="chart" data-chart="eventMix"></div>
   </div>
-  <div class="stat">
-    <span class="stat-value">{{ total_runs }}</span>
-    <span class="stat-label">Agent runs ({{ successful_runs }} ok · {{ failed_runs }} failed)</span>
+  <div class="panel">
+    <h3>Activity by hour (UTC)</h3>
+    <div class="chart" data-chart="hourHist"></div>
   </div>
-  <div class="stat">
-    <span class="stat-value">
-      {% if vector_count is not none %}{{ vector_count }}{% else %}—{% endif %}
-    </span>
-    <span class="stat-label">Vectors in Pinecone</span>
+  <div class="panel">
+    <h3>Top categories explored</h3>
+    <div class="chart" data-chart="topCatsViewed"></div>
   </div>
-</div>
+  <div class="panel">
+    <h3>Top viewed products</h3>
+    <div class="chart" data-chart="topProducts"></div>
+  </div>
+  <div class="panel">
+    <h3>Catalog by category</h3>
+    <div class="chart" data-chart="catalogCats"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <h2>Analyst insights</h2>
+  </div>
+  <ul class="insight-list" data-insights></ul>
+</section>
 
 <section class="section">
   <div class="section-head">
@@ -108,4 +185,9 @@
     </tbody>
   </table>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script id="dashboard-data" type="application/json">{{ stats | tojson }}</script>
+<script src="{{ url_for('static', path='/js/dashboard.js') }}"></script>
 {% endblock %}
