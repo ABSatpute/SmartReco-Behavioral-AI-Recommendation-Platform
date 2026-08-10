@@ -144,7 +144,8 @@
   function renderAll(data) {
     document.querySelectorAll("[data-kpi]").forEach(function (node) {
       var v = resolve(node.getAttribute("data-kpi"), data);
-      node.textContent = fmtVal(v, node.getAttribute("data-format"));
+      var target = node.querySelector(".kpi-value") || node;
+      target.textContent = fmtVal(v, node.getAttribute("data-format"));
     });
     document.querySelectorAll("[data-sub-path]").forEach(function (node) {
       var v = resolve(node.getAttribute("data-sub-path"), data);
