@@ -9,7 +9,7 @@ Efficiency rules (judged criteria — no LLM call on a bare page view):
   4. the daily digest scheduler fires (later milestone).
 """
 import logging
-import secrets
+import threading
 import time
 import uuid
 from datetime import datetime, timedelta
@@ -18,12 +18,16 @@ from sqlalchemy.orm import Session
 
 from app.agent.graph import agent_graph
 from app.config import settings
+from app.database import SessionLocal
 from app.models import AgentRun, Product, Recommendation, RecommendationItem, User
 from app.observability import current_trace_id
 from app.services import events as events_service
 from app.utils import utcnow_naive
 
 logger = logging.getLogger(__name__)
+
+_RUNNING_USERS: set[int] = set()
+_RUNNING_LOCK = threading.Lock()
 
 
 def valid_latest(db: Session, user_id: int) -> Recommendation | None:
@@ -199,3 +203,38 @@ def with_products(db: Session, rec: Recommendation | None) -> list[dict]:
         for item in items
         if item.product_id in products
     ]
+
+
+def schedule_background(user_id: int) -> bool:
+    """Queue a fresh agent run for ``user_id`` if one isn't already in flight.
+
+    The trigger policy (event threshold + cooldown) is re-checked inside the
+    worker thread, so this only ever produces *new* recommendations — which is
+    what the browser notification watches for. Returns True when a thread was
+    started.
+    """
+    with _RUNNING_LOCK:
+        if user_id in _RUNNING_USERS:
+            return False
+        _RUNNING_USERS.add(user_id)
+    threading.Thread(
+        target=_background_worker, args=(user_id,), daemon=True, name=f"reco-{user_id}"
+    ).start()
+    return True
+
+
+def _background_worker(user_id: int) -> None:
+    try:
+        db = SessionLocal()
+        try:
+            user = db.get(User, user_id)
+            if user is None or not should_run(db, user_id, source="auto"):
+                return
+            run(db, user, source="auto")
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 - background work must never crash the app
+        logger.exception("Background recommendation run failed for user %s", user_id)
+    finally:
+        with _RUNNING_LOCK:
+            _RUNNING_USERS.discard(user_id)

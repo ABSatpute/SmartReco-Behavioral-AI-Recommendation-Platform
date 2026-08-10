@@ -598,6 +598,93 @@ img { max-width: 100%; }
 .reco-summary { margin: 0.3rem 0 0.7rem; font-size: 1.5rem; color: var(--c-primary-active); }
 .reco-narrative { font-size: 1rem; max-width: 60rem; color: var(--c-text-2); }
 
+.btn.is-loading { pointer-events: none; opacity: .85; }
+
+/* ============================================================================
+   "Picks are ready" notifications: header bell + concierge card
+   ============================================================================ */
+.reco-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  color: var(--c-on-dark-muted);
+  text-decoration: none;
+  transition: background var(--speed) ease, color var(--speed) ease;
+}
+.reco-bell:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.reco-bell.has-new .bell-icon { transform-origin: 50% 10%; animation: bell-ring 1.6s ease infinite; }
+@keyframes bell-ring {
+  0%, 60%, 100% { transform: rotate(0); }
+  10%, 30%, 50% { transform: rotate(10deg); }
+  20%, 40%     { transform: rotate(-10deg); }
+}
+.bell-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--c-tertiary);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+
+.reco-card {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  width: min(360px, calc(100vw - 2rem));
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-strong);
+  border-left: 4px solid var(--c-primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  transform: translateY(140%);
+  opacity: 0;
+  transition: transform 340ms cubic-bezier(.16, 1, .3, 1), opacity 240ms ease;
+}
+.reco-card.show { transform: translateY(0); opacity: 1; }
+.reco-card-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--c-primary);
+}
+.reco-card-summary { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.3; }
+.reco-card-fresh {
+  font-size: 0.78rem;
+  color: var(--c-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.reco-card-fresh::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-success);
+  box-shadow: 0 0 0 3px var(--c-success-bg);
+}
+.reco-card-actions { display: flex; align-items: center; gap: 0.9rem; margin-top: 0.3rem; }
+.reco-card-actions .btn { padding: 0.5rem 0.9rem; }
+.reco-card-close { font-size: 0.82rem; }
+
 .search-head h1 { margin: 0 0 0.75rem; }
 .searchbar-inline { max-width: 620px; }
 .result-count { color: var(--c-muted); margin-bottom: 1rem; }

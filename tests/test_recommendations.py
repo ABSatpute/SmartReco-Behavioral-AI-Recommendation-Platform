@@ -1,4 +1,5 @@
 import hashlib
+import time
 
 import pytest
 
@@ -252,3 +253,98 @@ def test_recommendations_page_requires_login(client):
     resp = client.get("/recommendations", follow_redirects=False)
     assert resp.status_code == 303
     assert resp.headers["location"] == "/auth/login"
+
+
+def _ranked_candidate(pid, category, score):
+    return {
+        "id": pid,
+        "title": f"Product {pid}",
+        "category": category,
+        "score": score,
+        "composite": score,
+        "seen": False,
+    }
+
+
+def test_diversify_spreads_picks_across_categories():
+    candidates = (
+        [_ranked_candidate(i, "AI", 1.0 - i * 0.01) for i in range(1, 6)]
+        + [_ranked_candidate(i, "Web", 0.92 - i * 0.01) for i in range(1, 5)]
+        + [_ranked_candidate(i, "Mobile", 0.8 - i * 0.01) for i in range(1, 3)]
+    )
+    selected = nodes._diversify(candidates, max_per_category=2, top_n=5)
+    by_cat: dict[str, int] = {}
+    for c in selected:
+        by_cat[c["category"]] = by_cat.get(c["category"], 0) + 1
+    assert len(selected) == 5
+    assert max(by_cat.values()) <= 2
+    assert set(by_cat) == {"AI", "Web", "Mobile"}
+
+
+def test_diversify_keeps_best_within_category_limit():
+    candidates = [
+        _ranked_candidate(1, "AI", 0.99),
+        _ranked_candidate(2, "AI", 0.98),
+        _ranked_candidate(3, "AI", 0.97),
+        _ranked_candidate(4, "Web", 0.8),
+    ]
+    selected = nodes._diversify(candidates, max_per_category=2, top_n=5)
+    ids = [c["id"] for c in selected]
+    # Best 2 per category first, then top off with the best remaining overflow.
+    assert ids == [1, 2, 4, 3]
+
+
+def test_recommendation_status_endpoint_empty_and_ready(client, vector_store):
+    _seed_catalog()
+    _register_user(client)
+    _add_events(1, count=3)
+
+    # Before any recommendation exists -> not ready.
+    resp = client.get("/api/recommendations/status")
+    assert resp.status_code == 200
+    assert resp.json()["ready"] is False
+
+    client.post("/recommendations/refresh", follow_redirects=False)
+    resp = client.get("/api/recommendations/status")
+    data = resp.json()
+    assert data["ready"] is True
+    assert data["rec_id"] > 0
+    assert data["summary"] == "Your next step in RAG"
+
+
+def test_schedule_background_generates_recommendation(client, vector_store):
+    _seed_catalog()
+    user = _register_user(client)
+    _add_events(user.id, count=3)
+
+    assert rec_service.schedule_background(user.id) is True
+
+    db = SessionLocal()
+    try:
+        # The worker re-checks the trigger policy then runs the agent in a
+        # daemon thread; wait for the fresh recommendation to land.
+        rec = None
+        for _ in range(40):
+            rec = (
+                db.query(Recommendation)
+                .filter(Recommendation.user_id == user.id)
+                .first()
+            )
+            if rec is not None:
+                break
+            time.sleep(0.25)
+        assert rec is not None
+        assert rec.summary == "Your next step in RAG"
+        # Another schedule right after cannot produce a second recommendation
+        # (cooldown + no new events), no matter whether a thread is spawned.
+        count_before = (
+            db.query(Recommendation).filter(Recommendation.user_id == user.id).count()
+        )
+        rec_service.schedule_background(user.id)
+        time.sleep(0.5)
+        count_after = (
+            db.query(Recommendation).filter(Recommendation.user_id == user.id).count()
+        )
+        assert count_after == count_before
+    finally:
+        db.close()

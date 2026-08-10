@@ -61,6 +61,37 @@ def _seen_product_ids(events: list[dict]) -> set[int]:
     return ids
 
 
+def _diversify(
+    candidates: list[dict],
+    max_per_category: int = 2,
+    top_n: int = 5,
+) -> list[dict]:
+    """Prefer a category-diverse slate, never wasting quality.
+
+    Pass 1 greedily accepts at most ``max_per_category`` products per category
+    (best-ranked first) so the picks span multiple interests. Pass 2 tops the
+    slate back up with the best remaining candidates when a category dominates,
+    so a single-interest session still gets a full set of picks.
+    """
+    counts: dict[str, int] = {}
+    selected: list[dict] = []
+    overflow: list[dict] = []
+    for candidate in candidates:
+        category = candidate.get("category") or "Uncategorized"
+        if counts.get(category, 0) < max_per_category:
+            counts[category] = counts.get(category, 0) + 1
+            selected.append(candidate)
+        else:
+            overflow.append(candidate)
+        if top_n is not None and len(selected) >= top_n:
+            break
+    for candidate in overflow:
+        if top_n is not None and len(selected) >= top_n:
+            break
+        selected.append(candidate)
+    return selected
+
+
 def _query_vector_fallback(db, query: str) -> list[dict]:
     """Catalog-grounded keyword fallback when embeddings/vector search fail."""
     from app.services import products as product_service
@@ -219,7 +250,7 @@ def evaluate(state: dict) -> dict:
         c["composite"] = round(composite, 4)
 
     candidates.sort(key=lambda c: c["composite"], reverse=True)
-    candidates = candidates[:5]
+    candidates = _diversify(candidates, max_per_category=2, top_n=5)
 
     attempts = state.get("attempts", 0)
     best = candidates[0] if candidates else None

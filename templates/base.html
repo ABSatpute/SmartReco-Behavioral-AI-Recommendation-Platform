@@ -70,6 +70,17 @@
           </a>
         {% endif %}
 
+        {% if current_user and current_user.role != 'admin' %}
+        <a class="reco-bell" href="/recommendations" aria-label="Recommended picks ready"
+           data-reco-bell>
+          <svg class="bell-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>
+          </svg>
+          <span class="bell-badge" data-reco-badge hidden></span>
+        </a>
+        {% endif %}
+
         {% if not (current_user and current_user.role == 'admin') %}
         <a class="cart-link" href="/cart" aria-label="Cart">
           <svg class="cart-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
@@ -172,6 +183,10 @@
   <script src="{{ url_for('static', path='/js/tracker.js') }}" data-app="{{ request.base_url }}"></script>
   <script src="{{ url_for('static', path='/js/toast.js') }}"></script>
   <script src="{{ url_for('static', path='/js/cart.js') }}" data-app="{{ request.base_url }}"></script>
+  {% if current_user %}
+    <script src="{{ url_for('static', path='/js/notifications.js') }}" data-app="{{ request.base_url }}"
+            data-user-id="{{ current_user.id }}"></script>
+  {% endif %}
   <script>
     (function () {
       // Mobile nav toggle

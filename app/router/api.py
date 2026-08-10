@@ -167,6 +167,12 @@ def ingest_events(
             samesite="lax",
         )
 
+    # Behaviour-triggered recommendations: when enough meaningful activity has
+    # accumulated (trigger policy + cooldown), generate fresh picks in the
+    # background so a notification can nudge the user. Skipped in tests.
+    if session.user_id is not None and settings.app_env != "test":
+        rec_service.schedule_background(session.user_id)
+
     return {"status": "ok", "stored": stored}
 
 
@@ -180,6 +186,26 @@ def api_latest_recommendation(
     if recommendation is None:
         return {"status": "none", "message": "No valid recommendation yet. Browse a little more."}
     return RecommendationOut.model_validate(recommendation)
+
+
+@router.get("/recommendations/status")
+def api_recommendation_status(
+    request: Request,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Lightweight poll for the browser notification: is a fresh recommendation
+    waiting? Returns the newest valid recommendation id so the client can tell
+    when a *new* one was generated while the user browsed."""
+    recommendation = rec_service.valid_latest(db, user.id)
+    if recommendation is None:
+        return {"ready": False, "rec_id": None, "summary": None}
+    return {
+        "ready": True,
+        "rec_id": recommendation.id,
+        "summary": recommendation.summary,
+        "created_at": recommendation.created_at.isoformat(sep=" ", timespec="seconds"),
+    }
 
 
 @router.post("/digest/test")

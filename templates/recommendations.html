@@ -5,10 +5,10 @@
 {% block sidebar %}{% include "partials/account_sidebar.html" %}{% endblock %}
 
 {% block content %}
-<div class="page-head">
+<div class="page-head" data-reco-page>
   <h1>Your recommendations</h1>
-  <form method="post" action="/recommendations/refresh" class="inline-form">
-    <button type="submit" class="btn btn-cart">Refresh recommendations</button>
+  <form method="post" action="/recommendations/refresh" id="reco-refresh-form" class="inline-form">
+    <button type="submit" id="reco-refresh-btn" class="btn btn-cart">Refresh recommendations</button>
   </form>
 </div>
 
@@ -50,4 +50,26 @@
     {% endfor %}
   </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const form = document.getElementById('reco-refresh-form');
+    const btn = document.getElementById('reco-refresh-btn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Analyzing your recent activity…';
+      btn.classList.add('is-loading');
+      fetch(form.action, { method: 'POST', credentials: 'same-origin' })
+        .finally(function () {
+          window.location.href = '/recommendations';
+        });
+    });
+  })();
+</script>
 {% endblock %}
