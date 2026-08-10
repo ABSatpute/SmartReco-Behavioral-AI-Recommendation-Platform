@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='/SmartReco_favicon_32.png') }}?v=7">
   <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', path='/SmartReco_favicon_16.png') }}?v=7">
   <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', path='/SmartReco_favicon_192.png') }}?v=7">
-  <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}?v=3">
+  <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}?v=4">
 </head>
 <body>
   <header class="header{% if not current_user %} site-header--nav{% endif %}">
@@ -184,11 +184,11 @@
     <div class="footer-bottom">© {% if now is defined and now %}{{ now.year }}{% endif %} SmartReco — demo for the SmartReco Build Challenge 2026.</div>
   </footer>
 
-  <script src="{{ url_for('static', path='/js/tracker.js') }}" data-app="{{ request.base_url }}"></script>
-  <script src="{{ url_for('static', path='/js/toast.js') }}"></script>
-  <script src="{{ url_for('static', path='/js/cart.js') }}" data-app="{{ request.base_url }}"></script>
+  <script src="{{ url_for('static', path='/js/tracker.js') }}?v=2" data-app="{{ request.base_url }}"></script>
+  <script src="{{ url_for('static', path='/js/toast.js') }}?v=2"></script>
+  <script src="{{ url_for('static', path='/js/cart.js') }}?v=2" data-app="{{ request.base_url }}"></script>
   {% if current_user %}
-    <script src="{{ url_for('static', path='/js/notifications.js') }}" data-app="{{ request.base_url }}"
+    <script src="{{ url_for('static', path='/js/notifications.js') }}?v=2" data-app="{{ request.base_url }}"
             data-user-id="{{ current_user.id }}"></script>
   {% endif %}
   <script>

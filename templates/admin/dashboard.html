@@ -193,5 +193,5 @@
 
 {% block scripts %}
 <script id="dashboard-data" type="application/json">{{ stats | tojson }}</script>
-<script src="{{ url_for('static', path='/js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', path='/js/dashboard.js') }}?v=2"></script>
 {% endblock %}
