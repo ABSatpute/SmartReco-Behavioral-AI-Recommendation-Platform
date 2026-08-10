@@ -116,6 +116,56 @@ def send_telegram(chat_id: str, text: str) -> bool:
         return False
 
 
+def send_telegram_photos(chat_id: str, products: list[dict], max_photos: int = 5) -> bool:
+    """Send the top picks as a Telegram photo media group with captions.
+
+    Photos are delivered by URL (Telegram fetches them server-side); products
+    without an image are skipped. Returns True when at least one photo was sent.
+    """
+    media: list[dict] = []
+    for index, entry in enumerate(products, start=1):
+        product = entry.get("product") if isinstance(entry, dict) else None
+        if product is None:
+            continue
+        image_url = (getattr(product, "image_url", None) or "").strip()
+        if not image_url:
+            continue
+        caption = f"{index}. {product.title}"
+        price = getattr(product, "price", None)
+        if price is not None:
+            caption += f" — ${float(price):.2f}"
+        item = entry.get("item")
+        rationale = getattr(item, "rationale", None) if item is not None else None
+        if rationale:
+            caption += f"\n{rationale}"
+        media.append({"type": "photo", "media": image_url, "caption": caption[:1024]})
+        if len(media) >= max_photos:
+            break
+
+    if not media:
+        return False
+    if not settings.telegram_bot_token:
+        logger.info("[dev-fallback] telegram photos skipped -> chat=%s (no token)", chat_id)
+        return False
+
+    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMediaGroup"
+    try:
+        resp = httpx.post(
+            url,
+            json={"chat_id": chat_id, "media": media},
+            timeout=25,
+        )
+        if resp.status_code >= 400:
+            logger.error(
+                "Telegram media API error %s: %s", resp.status_code, resp.text[:500]
+            )
+            return False
+        return True
+    except Exception:  # noqa: BLE001 - failure must not break the digest job
+        logger.exception("Telegram media send failed to chat %s", chat_id)
+        return False
+
+
 def _send_resend(to_email: str, subject: str, html: str, text: str) -> bool:
     if not settings.resend_api_key:
         logger.info("[dev-fallback] digest email -> %s subject=%r", to_email, subject)
@@ -148,10 +198,39 @@ def _send_resend(to_email: str, subject: str, html: str, text: str) -> bool:
         return False
 
 
+SYNTHETIC_EMAIL_DOMAINS = {
+    "x.com",
+    "smartreco.dev",
+    "example.com",
+    "example.org",
+    "example.net",
+    "test.com",
+    "testuser.com",
+}
+
+
+def _is_synthetic_email(email: str) -> bool:
+    domain = (email.rsplit("@", 1)[-1] if "@" in email else "").lower()
+    return domain in SYNTHETIC_EMAIL_DOMAINS or domain.endswith(".invalid")
+
+
 def _send_smtp(to_email: str, subject: str, html: str, text: str) -> bool:
     if not settings.smtp_host:
+        if settings.app_env == "production":
+            # Never silently "send" an email that cannot be delivered in prod.
+            logger.error(
+                "Email not configured: SMTP_HOST missing while APP_ENV=production."
+            )
+            return False
         logger.info("[dev-fallback] digest email -> %s subject=%r", to_email, subject)
         return True
+
+    if _is_synthetic_email(to_email):
+        logger.warning(
+            "Recipient %s looks like a test/synthetic address; mail will be "
+            "rejected by real providers. Use a real inbox to receive digests.",
+            to_email,
+        )
 
     sender = settings.email_from or "SmartReco <noreply@smartreco.dev>"
     msg = MIMEMultipart("alternative")
@@ -166,7 +245,12 @@ def _send_smtp(to_email: str, subject: str, html: str, text: str) -> bool:
             if settings.smtp_user:
                 server.starttls()
                 server.login(settings.smtp_user, settings.smtp_password)
-            server.sendmail(sender, [to_email], msg.as_string())
+            refused = server.sendmail(sender, [to_email], msg.as_string())
+            if refused:
+                logger.error(
+                    "SMTP refused recipient %s: %s", to_email, {k: v[1] for k, v in refused.items()}
+                )
+                return False
         return True
     except Exception:  # noqa: BLE001 - sending failure must not break the job
         logger.exception("SMTP send failed to %s", to_email)
@@ -201,6 +285,7 @@ def _deliver_for_user(session: Session, user: User, summary: dict) -> bool:
         and user.telegram_chat_id
     ):
         tg_ok = send_telegram(user.telegram_chat_id, text)
+        send_telegram_photos(user.telegram_chat_id, products)
 
     # The email is the primary channel. Telegram is best-effort: a Telegram
     # failure is logged but must not fail the email digest.
@@ -344,6 +429,7 @@ def _deliver_session_slot(
         and user.telegram_chat_id
     ):
         send_telegram(user.telegram_chat_id, text)
+        send_telegram_photos(user.telegram_chat_id, products)
 
     status = "sent" if email_ok else "failed"
     _record_session_slot(db, browse, user, slot, rec.id, status, now)

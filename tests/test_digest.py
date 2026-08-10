@@ -1,5 +1,7 @@
 import hashlib
+from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from app.agent import nodes
@@ -340,3 +342,53 @@ def test_cron_digest_with_secret_runs(client, vector_store, monkeypatch):
         assert db.query(EmailDigest).filter(EmailDigest.user_id == user.id).count() == 1
     finally:
         db.close()
+
+
+def _product_entry(title, price, image_url, rationale):
+    return {
+        "product": SimpleNamespace(title=title, price=price, image_url=image_url),
+        "item": SimpleNamespace(rationale=rationale),
+    }
+
+
+def test_send_telegram_photos_media_group_with_images(monkeypatch):
+    calls: dict = {}
+
+    def fake_post(url, json=None, timeout=None):
+        calls["url"] = url
+        calls["json"] = json
+        return SimpleNamespace(status_code=200, text="")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    products = [
+        _product_entry("RAG Course", 49.0, "https://img/a.jpg", "top match"),
+        _product_entry("Vector DB", 59.0, "https://img/b.jpg", "great fit"),
+        _product_entry("No Image", 1.0, None, "skip me"),
+    ]
+    ok = digest_service.send_telegram_photos("12345", products)
+    assert ok is True
+    assert "sendMediaGroup" in calls["url"]
+    assert calls["json"]["chat_id"] == "12345"
+    assert len(calls["json"]["media"]) == 2
+    first = calls["json"]["media"][0]
+    assert first["type"] == "photo"
+    assert first["media"] == "https://img/a.jpg"
+    assert "RAG Course" in first["caption"]
+    assert "$49.00" in first["caption"]
+    assert "top match" in first["caption"]
+
+
+def test_send_telegram_photos_skips_when_no_images(monkeypatch):
+    calls: list = []
+
+    def fake_post(url, json=None, timeout=None):
+        calls.append(url)
+        return SimpleNamespace(status_code=200, text="")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    products = [_product_entry("A", 1.0, None, "no image"), _product_entry("B", 2.0, "", "no image")]
+    ok = digest_service.send_telegram_photos("12345", products)
+    assert ok is False
+    assert calls == []
