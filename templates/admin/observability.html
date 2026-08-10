@@ -22,21 +22,22 @@
 </div>
 
 <h2>Recent agent runs</h2>
+<div class="table-scroll">
 <table class="table">
   <thead>
     <tr>
-      <th>ID</th><th>Trace id</th><th>Trigger</th><th>LLM calls</th><th>Tokens</th><th>Ms</th><th>Status</th><th>When</th>
+      <th class="num">ID</th><th>Trace id</th><th>Trigger</th><th class="num">LLM calls</th><th class="num">Tokens</th><th class="num">Ms</th><th>Status</th><th>When</th>
     </tr>
   </thead>
   <tbody>
     {% for run in recent_runs %}
     <tr>
-      <td>{{ run.id }}</td>
+      <td class="num">{{ run.id }}</td>
       <td><code>{{ run.trace_id }}</code></td>
       <td>{{ run.trigger }}</td>
-      <td>{{ run.llm_calls }}</td>
-      <td>{{ run.total_tokens }}</td>
-      <td>{{ run.duration_ms }}</td>
+      <td class="num">{{ run.llm_calls }}</td>
+      <td class="num">{{ run.total_tokens }}</td>
+      <td class="num">{{ run.duration_ms }}</td>
       <td>
         {% if run.error %}
           <span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>
@@ -51,4 +52,5 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

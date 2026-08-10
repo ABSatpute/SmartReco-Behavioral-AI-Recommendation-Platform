@@ -13,19 +13,20 @@
 
 <form method="get" action="/admin/users" class="filter-bar" role="search">
   <input class="filter-input" type="search" name="q" value="{{ q }}" placeholder="Search by name or email…" aria-label="Search users">
-  <button type="submit" class="btn">Filter</button>
+  <button type="submit" class="btn btn-sm">Filter</button>
   {% if q %}<a class="btn btn-link" href="/admin/users">Clear</a>{% endif %}
 </form>
 
+<div class="table-scroll">
 <table class="table admin-products">
   <thead>
     <tr>
-      <th>ID</th>
+      <th class="num">ID</th>
       <th>Name</th>
       <th>Email</th>
       <th>Role</th>
       <th>Mobile</th>
-      <th>Age</th>
+      <th class="num">Age</th>
       <th>Gender</th>
       <th>Telegram</th>
       <th>Joined</th>
@@ -35,7 +36,7 @@
   <tbody>
     {% for u in users %}
     <tr>
-      <td class="muted">{{ u.id }}</td>
+      <td class="muted num">{{ u.id }}</td>
       <td>
         <a class="admin-title" href="/admin/users/{{ u.id }}/edit">{{ u.full_name or '—' }}</a>
         {% if u.id == current_user.id %}<span class="badge badge-active">you</span>{% endif %}
@@ -64,6 +65,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 {% if pages > 1 %}
 <nav class="pagination" aria-label="User pages">

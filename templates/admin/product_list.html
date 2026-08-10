@@ -27,19 +27,20 @@
     <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
     <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
   </select>
-  <button type="submit" class="btn">Filter</button>
+  <button type="submit" class="btn btn-sm">Filter</button>
   {% if q or category or status %}
     <a class="btn btn-link" href="/admin/products">Clear</a>
   {% endif %}
 </form>
 
+<div class="table-scroll">
 <table class="table admin-products">
   <thead>
     <tr>
       <th></th>
       <th>Title</th>
       <th>Category</th>
-      <th>Price</th>
+      <th class="num">Price</th>
       <th>Level</th>
       <th>Status</th>
       <th>Vector</th>
@@ -62,7 +63,7 @@
         {% if product.is_best_seller %}<span class="badge badge-best">best seller</span>{% endif %}
       </td>
       <td>{{ product.category }}</td>
-      <td>${{ product.price }}</td>
+      <td class="num">${{ product.price }}</td>
       <td>{{ product.level or '—' }}</td>
       <td>
         <span class="badge {{ 'badge-active' if product.is_active else 'badge-inactive' }}">
@@ -96,6 +97,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 {% if pages > 1 %}
 <nav class="pagination" aria-label="Product pages">

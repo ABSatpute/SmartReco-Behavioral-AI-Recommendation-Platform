@@ -127,10 +127,11 @@
     <h2>Recent agent runs</h2>
     <a class="section-link" href="/admin/observability">View all</a>
   </div>
+  <div class="table-scroll">
   <table class="table">
     <thead>
       <tr>
-        <th>ID</th><th>Trigger</th><th>LLM calls</th><th>Tokens</th><th>Ms</th><th>Status</th><th>When</th>
+        <th>ID</th><th>Trigger</th><th class="num">LLM calls</th><th class="num">Tokens</th><th class="num">Ms</th><th>Status</th><th>When</th>
       </tr>
     </thead>
     <tbody>
@@ -138,9 +139,9 @@
       <tr>
         <td>{{ run.id }}</td>
         <td>{{ run.trigger }}</td>
-        <td>{{ run.llm_calls }}</td>
-        <td>{{ run.total_tokens }}</td>
-        <td>{{ run.duration_ms }}</td>
+        <td class="num">{{ run.llm_calls }}</td>
+        <td class="num">{{ run.total_tokens }}</td>
+        <td class="num">{{ run.duration_ms }}</td>
         <td>
           {% if run.error %}
             <span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>
@@ -155,6 +156,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 
 <section class="section">
@@ -162,9 +164,10 @@
     <h2>Recently added products</h2>
     <a class="section-link" href="/admin/products">Manage catalog</a>
   </div>
+  <div class="table-scroll">
   <table class="table">
     <thead>
-      <tr><th>ID</th><th>Title</th><th>Category</th><th>Price</th><th>Status</th></tr>
+      <tr><th>ID</th><th>Title</th><th>Category</th><th class="num">Price</th><th>Status</th></tr>
     </thead>
     <tbody>
       {% for product in recent_products %}
@@ -172,7 +175,7 @@
         <td>{{ product.id }}</td>
         <td><a href="/admin/products/{{ product.id }}/edit">{{ product.title }}</a></td>
         <td>{{ product.category }}</td>
-        <td>${{ product.price }}</td>
+        <td class="num">${{ product.price }}</td>
         <td>
           <span class="badge {{ 'badge-active' if product.is_active else 'badge-inactive' }}">
             {{ 'active' if product.is_active else 'inactive' }}
@@ -184,6 +187,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 {% endblock %}
 
