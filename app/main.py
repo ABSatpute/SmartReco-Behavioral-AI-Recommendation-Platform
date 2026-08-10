@@ -64,6 +64,17 @@ def healthz() -> Response:
 
 
 @app.middleware("http")
+async def no_cache_middleware(request: Request, call_next):
+    response: Response = await call_next(request)
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type:
+        response.headers["Cache-Control"] = "no-store"
+    elif request.url.path.startswith("/static"):
+        response.headers.setdefault("Cache-Control", "public, max-age=0, must-revalidate")
+    return response
+
+
+@app.middleware("http")
 async def trace_id_middleware(request: Request, call_next):
     trace_id = request.headers.get("x-trace-id")
     if not trace_id:

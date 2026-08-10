@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}?v=3">
 </head>
 <body>
-  <header class="header">
+  <header class="header{% if not current_user %} site-header--nav{% endif %}">
     <!-- Utility bar: logo · search · account -->
     <div class="topbar">
       <a class="logo" href="/" aria-label="SmartReco home">
@@ -42,9 +42,6 @@
               <span class="account-caret" aria-hidden="true">▾</span>
             </button>
             <div class="account-menu" data-account-menu>
-              {% if current_user.role != 'admin' %}
-                <a class="account-menu-link" href="/recommendations">My Account</a>
-              {% endif %}
               {% if current_user.role == 'admin' %}
                 <span class="account-menu-head">Admin</span>
                 <a class="account-menu-link" href="/admin">Dashboard</a>
@@ -53,7 +50,21 @@
                 <a class="account-menu-link" href="/admin/live">Live Activity</a>
                 <a class="account-menu-link" href="/admin/observability">Observability</a>
                 <div class="account-menu-sep"></div>
-                <a class="account-menu-link" href="/store">Shop</a>
+                <span class="account-menu-head">Shop</span>
+                <a class="account-menu-link" href="/store">Storefront preview</a>
+              {% else %}
+                <span class="account-menu-head">My Account</span>
+                <a class="account-menu-link" href="/recommendations">My Recommendations</a>
+                <div class="account-menu-sep"></div>
+                <span class="account-menu-head">Shop</span>
+                <a class="account-menu-link" href="/">All products</a>
+                <a class="account-menu-link" href="/search">Search all</a>
+                {% if nav_categories %}
+                  <span class="account-menu-head">Categories</span>
+                  {% for cat in nav_categories %}
+                    <a class="account-menu-link" href="/search?category={{ cat | urlencode }}">{{ cat }}</a>
+                  {% endfor %}
+                {% endif %}
               {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">
@@ -93,8 +104,9 @@
       </div>
     </div>
 
-    <!-- Navbar (RBAC-aware) -->
-    {% if not (current_user and current_user.role == 'admin') %}
+    <!-- Navbar (RBAC-aware): admins and signed-in shoppers use the account
+         menu above; only pre-login guests still get the storefront nav. -->
+    {% if not current_user %}
     <nav class="navbar" aria-label="Primary">
       <div class="navbar-inner">
         <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle menu" aria-expanded="false">☰</button>

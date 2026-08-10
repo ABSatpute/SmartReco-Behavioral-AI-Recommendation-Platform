@@ -60,6 +60,7 @@
   --topbar-h:    48px;
   --header-h:    56px;
   --nav-h:       46px;
+  --nav-h-real:  0px;
   --speed:       160ms;
 }
 
@@ -88,6 +89,7 @@ img { max-width: 100%; }
    Header — utility bar + navbar
    ============================================================================ */
 .header { position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow-sm); }
+.header.site-header--nav { --nav-h-real: var(--nav-h); }
 
 .topbar {
   display: flex;
@@ -217,6 +219,8 @@ img { max-width: 100%; }
   top: calc(100% + 6px);
   right: 0;
   min-width: 210px;
+  max-height: min(76vh, 620px);
+  overflow-y: auto;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius);
@@ -380,7 +384,7 @@ img { max-width: 100%; }
   border-radius: var(--radius);
   padding: 1rem 0.75rem;
   position: sticky;
-  top: calc(var(--topbar-h, 60px) + 47px);
+  top: calc(var(--topbar-h, 60px) + var(--nav-h-real, 0px));
 }
 .sidebar-title {
   font-size: 0.7rem;
@@ -575,7 +579,7 @@ img { max-width: 100%; }
   flex-direction: column;
   gap: 0.6rem;
   position: sticky;
-  top: calc(var(--topbar-h, 60px) + 47px + 16px);
+  top: calc(var(--topbar-h, 60px) + var(--nav-h-real, 0px) + 16px);
   box-shadow: var(--shadow-sm);
 }
 .buybox-price { display: flex; align-items: baseline; gap: 0.15rem; }
@@ -968,7 +972,7 @@ img { max-width: 100%; }
 .cart-line-total { font-weight: 700; white-space: nowrap; }
 .cart-remove { color: var(--c-danger); font-size: 0.85rem; }
 .cart-summary {
-  position: sticky; top: calc(var(--topbar-h, 48px) + var(--header-h, 56px) + var(--nav-h, 46px));
+  position: sticky; top: calc(var(--topbar-h, 48px) + var(--nav-h-real, 0px));
   padding: 1.1rem;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
