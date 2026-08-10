@@ -1073,6 +1073,8 @@ img { max-width: 100%; }
   border-radius: 10px;
   box-shadow: 0 4px 14px rgba(79, 70, 229, .30);
 }
+.account-form { max-width: 640px; margin-bottom: 2.5rem; }
+.account-password h2 { margin-top: 2rem; }
 .auth-divider {
   display: flex;
   align-items: center;

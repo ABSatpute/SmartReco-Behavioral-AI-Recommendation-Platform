@@ -52,13 +52,12 @@
                 <div class="account-menu-sep"></div>
                 <span class="account-menu-head">Shop</span>
                 <a class="account-menu-link" href="/store">Storefront preview</a>
-              {% else %}
-                <span class="account-menu-head">My Account</span>
-                <a class="account-menu-link" href="/recommendations">My Recommendations</a>
                 <div class="account-menu-sep"></div>
-                <span class="account-menu-head">Shop</span>
-                <a class="account-menu-link" href="/">All products</a>
-                <a class="account-menu-link" href="/search">Search all</a>
+              {% endif %}
+              <span class="account-menu-head">My Account</span>
+              <a class="account-menu-link" href="/account">Account details</a>
+              {% if current_user.role != 'admin' %}
+                <a class="account-menu-link" href="/recommendations">My Recommendations</a>
               {% endif %}
               <div class="account-menu-sep"></div>
               <form method="post" action="/auth/logout" class="account-menu-form">

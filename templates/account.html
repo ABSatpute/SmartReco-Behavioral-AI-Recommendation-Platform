@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Account · SmartReco{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Account details</h1>
+  <a class="btn btn-cart" href="{{ '/store' if current_user.role == 'admin' else '/' }}">Back to shop</a>
+</div>
+
+<p class="muted" style="margin-top:0">
+  {{ current_user.role | capitalize }} account
+  {% if current_user.created_at %} · member since {{ current_user.created_at.strftime('%b %d, %Y') }}{% endif %}
+</p>
+
+<form method="post" action="/account" class="auth-form account-form" novalidate>
+  <div class="auth-field {% if errors and errors.full_name %}has-error{% endif %}">
+    <label for="full_name">Full name<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="text" id="full_name" name="full_name" required autocomplete="name" maxlength="255"
+           value="{{ form.full_name or '' }}" aria-describedby="full_name-error">
+    <p class="auth-field-error" id="full_name-error" role="alert">{% if errors and errors.full_name %}{{ errors.full_name }}{% endif %}</p>
+  </div>
+
+  <div class="auth-field {% if errors and errors.email %}has-error{% endif %}">
+    <label for="email">Email<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="email" id="email" name="email" required autocomplete="email" inputmode="email"
+           value="{{ form.email or '' }}" aria-describedby="email-error">
+    <p class="auth-field-error" id="email-error" role="alert">{% if errors and errors.email %}{{ errors.email }}{% endif %}</p>
+  </div>
+
+  <div class="auth-field {% if errors and errors.mobile %}has-error{% endif %}">
+    <label for="mobile">Mobile number<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="tel" id="mobile" name="mobile" required autocomplete="tel" inputmode="tel"
+           value="{{ form.mobile or '' }}" aria-describedby="mobile-error">
+    <p class="auth-field-error" id="mobile-error" role="alert">{% if errors and errors.mobile %}{{ errors.mobile }}{% endif %}</p>
+  </div>
+
+  <div class="auth-field {% if errors and errors.age %}has-error{% endif %}">
+    <label for="age">Age<span class="auth-req" aria-hidden="true"> *</span></label>
+    <input type="number" id="age" name="age" required inputmode="numeric" min="1" max="119"
+           value="{{ form.age or '' }}" aria-describedby="age-error">
+    <p class="auth-field-error" id="age-error" role="alert">{% if errors and errors.age %}{{ errors.age }}{% endif %}</p>
+  </div>
+
+  <div class="auth-field {% if errors and errors.gender %}has-error{% endif %}">
+    <label for="gender">Gender<span class="auth-req" aria-hidden="true"> *</span></label>
+    <select id="gender" name="gender" required aria-describedby="gender-error">
+      <option value="" {% if not form.gender %}selected{% endif %}>Select…</option>
+      {% for g in ["male", "female", "non-binary", "prefer not to say"] %}
+        <option value="{{ g }}" {% if form.gender == g %}selected{% endif %}>{{ g | capitalize }}</option>
+      {% endfor %}
+    </select>
+    <p class="auth-field-error" id="gender-error" role="alert">{% if errors and errors.gender %}{{ errors.gender }}{% endif %}</p>
+  </div>
+
+  <div class="auth-field {% if errors and errors.telegram_chat_id %}has-error{% endif %}">
+    <label for="telegram_chat_id">Telegram chat ID<span class="auth-opt">Optional</span></label>
+    <input type="text" id="telegram_chat_id" name="telegram_chat_id" autocomplete="off"
+           value="{{ form.telegram_chat_id or '' }}" aria-describedby="telegram-error">
+    <p class="auth-field-hint" id="telegram-hint">Used to send you daily digest notifications on Telegram.</p>
+    <p class="auth-field-error" id="telegram-error" role="alert">{% if errors and errors.telegram_chat_id %}{{ errors.telegram_chat_id }}{% endif %}</p>
+  </div>
+
+  <button type="submit" class="btn btn-primary auth-submit">Save changes</button>
+</form>
+
+<section class="section account-password">
+  <h2>Change password</h2>
+  <p class="muted">Leave blank to keep your current password.</p>
+  <div class="auth-field {% if errors and errors.current_password %}has-error{% endif %}">
+    <label for="current_password">Current password</label>
+    <input type="password" id="current_password" name="current_password" autocomplete="current-password"
+           aria-describedby="current_password-error">
+    <p class="auth-field-error" id="current_password-error" role="alert">{% if errors and errors.current_password %}{{ errors.current_password }}{% endif %}</p>
+  </div>
+  <div class="auth-field {% if errors and errors.new_password %}has-error{% endif %}">
+    <label for="new_password">New password</label>
+    <input type="password" id="new_password" name="new_password" autocomplete="new-password" minlength="8"
+           placeholder="At least 8 characters" aria-describedby="new_password-error">
+    <p class="auth-field-error" id="new_password-error" role="alert">{% if errors and errors.new_password %}{{ errors.new_password }}{% endif %}</p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var form = document.querySelector('.account-form');
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+      var submit = form.querySelector('[type="submit"]');
+      if (submit && !submit.disabled) {
+        submit.disabled = true;
+        submit.textContent = 'Saving…';
+      }
+    });
+  })();
+</script>
+{% endblock %}
