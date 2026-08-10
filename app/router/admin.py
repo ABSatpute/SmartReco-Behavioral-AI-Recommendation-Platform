@@ -212,8 +212,8 @@ def _dashboard_stats(db: Session) -> dict:
     )
     catalog_cats = [{"name": name or "uncategorized", "value": c} for name, c in catalog_rows]
 
-    token_sum = db.query(func.sum(AgentRun.total_tokens)).scalar() or 0
-    llm_sum = db.query(func.sum(AgentRun.llm_calls)).scalar() or 0
+    token_sum = int(db.query(func.sum(AgentRun.total_tokens)).scalar() or 0)
+    llm_sum = int(db.query(func.sum(AgentRun.llm_calls)).scalar() or 0)
     avg_tokens = db.query(func.avg(AgentRun.total_tokens)).scalar()
     avg_duration = db.query(func.avg(AgentRun.duration_ms)).scalar()
 
@@ -253,7 +253,7 @@ def _dashboard_stats(db: Session) -> dict:
     if total_runs:
         insights.append(
             f"Recommendation agent: {success_rate}% success, "
-            f"{round(avg_tokens or 0)} tokens / run on average."
+            f"{round(float(avg_tokens or 0))} tokens / run on average."
         )
 
     return {
@@ -304,8 +304,8 @@ def _dashboard_stats(db: Session) -> dict:
         "llm": {
             "token_sum": token_sum,
             "llm_sum": llm_sum,
-            "avg_tokens": round(avg_tokens, 1) if avg_tokens is not None else None,
-            "avg_duration": round(avg_duration, 1) if avg_duration is not None else None,
+            "avg_tokens": round(float(avg_tokens), 1) if avg_tokens is not None else None,
+            "avg_duration": round(float(avg_duration), 1) if avg_duration is not None else None,
             "success_rate": success_rate,
         },
         "insights": insights,
