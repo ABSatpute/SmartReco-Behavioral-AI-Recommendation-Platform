@@ -49,6 +49,7 @@
 
   /* Focus ring (WCAG 2.1 :focus-visible) --------------------------------- */
   --c-focus-ring:    #6366f1;
+  --c-primary-glow:  rgba(79, 70, 229, 0.16);
 
   /* Geometry ------------------------------------------------------------- */
   --radius:      10px;
@@ -521,24 +522,24 @@ img { max-width: 100%; }
 }
 .btn:hover { background: var(--c-surface-2); box-shadow: var(--shadow-sm); }
 .btn:active { transform: translateY(1px); }
-.btn:focus-visible { outline: 3px solid var(--c-focus-ring); outline-offset: 2px; }
+.btn:focus-visible { outline: 3px solid var(--c-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 4px var(--c-primary-glow); }
 .btn:disabled,
 .btn[disabled],
 .btn.is-loading { pointer-events: none; opacity: .6; cursor: not-allowed; }
 
 .btn-primary,
-.btn-cart { background: var(--c-primary); border-color: var(--c-primary); color: #fff; box-shadow: 0 2px 8px rgba(79, 70, 229, .22); }
+.btn-cart { background: var(--c-primary); border-color: var(--c-primary); color: #fff; box-shadow: 0 2px 10px var(--c-primary-glow); }
 .btn-primary:hover,
-.btn-cart:hover { background: var(--c-primary-active); border-color: var(--c-primary-active); box-shadow: 0 3px 10px rgba(79, 70, 229, .32); }
+.btn-cart:hover { background: var(--c-primary-active); border-color: var(--c-primary-active); box-shadow: 0 4px 14px var(--c-primary-glow); }
 .btn-buy { background: var(--c-primary-active); border-color: var(--c-primary-active); color: #fff; box-shadow: 0 2px 8px rgba(79, 70, 229, .3); }
 .btn-buy:hover { background: var(--c-primary); border-color: var(--c-primary); }
-.btn-secondary { background: var(--c-secondary); border-color: var(--c-secondary); color: #fff; }
+.btn-secondary { background: var(--c-secondary); border-color: var(--c-secondary); color: #fff; box-shadow: 0 2px 10px rgba(14, 165, 233, 0.18); }
 .btn-secondary:hover { background: var(--c-secondary-strong); border-color: var(--c-secondary-strong); }
-.btn-danger { background: var(--c-danger); border-color: var(--c-danger); color: #fff; }
+.btn-danger { background: var(--c-danger); border-color: var(--c-danger); color: #fff; box-shadow: 0 2px 10px rgba(220, 38, 38, 0.18); }
 .btn-danger:hover { background: var(--c-danger-strong); border-color: var(--c-danger-strong); }
-.btn-light { background: var(--c-surface); color: var(--c-header-bg); font-weight: 600; border: 1px solid var(--c-border); }
+.btn-light { background: var(--c-surface); color: var(--c-header-bg); font-weight: 600; border: 1px solid var(--c-border-strong); }
 .btn-light:hover { background: var(--c-surface-2); }
-.btn-link { background: none; border: 0; color: var(--c-primary); cursor: pointer; padding: 0; font-size: 0.85rem; font-weight: 600; }
+.btn-link { background: none; border: 0; color: var(--c-primary); cursor: pointer; padding: 0; margin: 0; font-family: inherit; font-size: 0.85rem; font-weight: 600; }
 .btn-link:hover { color: var(--c-primary-active); text-decoration: underline; }
 
 .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 6px; }
@@ -1341,19 +1342,8 @@ img { max-width: 100%; }
    the cascade without touching the base system.
    =========================================================================== */
 :root {
-  --c-primary-glow: rgba(79, 70, 229, 0.16);
   --c-row-accent:   rgba(15, 23, 42, 0.035);
 }
-
-/* --- Buttons ------------------------------------------------------------ */
-.btn:focus-visible { outline: 3px solid var(--c-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 4px var(--c-primary-glow); }
-.btn-primary, .btn-cart { background: var(--c-primary); border-color: var(--c-primary); box-shadow: 0 2px 10px var(--c-primary-glow); }
-.btn-primary:hover, .btn-cart:hover { background: var(--c-primary-active); border-color: var(--c-primary-active); box-shadow: 0 4px 14px var(--c-primary-glow); }
-.btn-secondary { background: var(--c-secondary); border-color: var(--c-secondary); box-shadow: 0 2px 10px rgba(14, 165, 233, 0.18); }
-.btn-secondary:hover { background: var(--c-secondary-strong); border-color: var(--c-secondary-strong); }
-.btn-danger { background: var(--c-danger); border-color: var(--c-danger); box-shadow: 0 2px 10px rgba(220, 38, 38, 0.18); }
-.btn-danger:hover { background: var(--c-danger-strong); border-color: var(--c-danger-strong); }
-.btn-light { border: 1px solid var(--c-border-strong); }
 
 /* --- Dropdowns (selects) ------------------------------------------------ */
 .filter-bar select,
