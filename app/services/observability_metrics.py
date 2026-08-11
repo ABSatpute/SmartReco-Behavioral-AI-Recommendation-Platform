@@ -249,9 +249,9 @@ def agent_metrics(
                 node = target.get("node") or "?"
                 A = nodes.setdefault(node, _new_node())
                 A["fail"] += 1
-            label = _error_label(run.error)
-            if label != "skipped":
-                entry = errors.setdefault(label, {"count": 0, "example": ""})
+            err_label = _error_label(run.error)
+            if err_label != "skipped":
+                entry = errors.setdefault(err_label, {"count": 0, "example": ""})
                 entry["count"] += 1
                 entry["example"] = entry["example"] or run.error
 
