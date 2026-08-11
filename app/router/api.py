@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
 from app.deps import require_admin, require_user
-from app.models import Product, Session as DBSession
-from app.models import User, UserEvent
+from app.models import Product, User, UserEvent
+from app.models import Session as DBSession
 from app.schemas import CartAddIn, CartRemoveIn, CartUpdateIn, EventBatchIn, RecommendationOut
 from app.services import auth as auth_service
 from app.services import browse_sessions as browse_service
@@ -54,6 +54,7 @@ def _set_new_session_cookie(response: Response, session: DBSession) -> None:
         max_age=settings.session_ttl_days * 24 * 60 * 60,
         httponly=True,
         samesite="lax",
+        secure=settings.app_env == "production",
     )
 
 

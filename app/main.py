@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
+from app.csrf import CSRFOriginCheckMiddleware
 from app.database import Base, engine
 from app.observability import current_trace_id, setup_logging_and_langsmith, trace_id_var
 from app.router import admin, api, auth, cron, pages
@@ -31,7 +32,7 @@ def _startup_digest_catchup() -> None:
         logger.info("Startup digest catch-up: %s", result)
         result = run_session_digests()
         logger.info("Startup session-digest catch-up: %s", result)
-    except Exception:  # noqa: BLE001 - never block boot on digest work
+    except Exception:
         logger.exception("Startup digest catch-up failed")
 
 
@@ -87,6 +88,9 @@ async def trace_id_middleware(request: Request, call_next):
         return response
     finally:
         trace_id_var.reset(token)
+
+
+app.add_middleware(CSRFOriginCheckMiddleware)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(pages.router)

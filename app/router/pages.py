@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -30,7 +30,7 @@ def _nav_context(request: Request, user: User | None, db: Session) -> dict:
         "nav_categories": nav_categories,
         "recommendation": recommendation,
         "reco_picks": reco_picks,
-        "now": datetime.now(timezone.utc),
+        "now": datetime.now(UTC),
     }
 
 
@@ -116,7 +116,7 @@ def account_page(
             "current_user": user,
             "form": _account_form(user),
             "errors": None,
-            "now": datetime.now(timezone.utc),
+            "now": datetime.now(UTC),
             "title": "Account · SmartReco",
         },
     )
@@ -161,7 +161,7 @@ def account_update(
             errors["email"] = "An account with this email already exists."
     digits_only = re.sub(r"[^\d]", "", mobile)
     if not (7 <= len(digits_only) <= 15):
-        errors["mobile"] = "Enter a valid mobile number (7–15 digits)."
+        errors["mobile"] = "Enter a valid mobile number (7-15 digits)."
     try:
         age_val = int(age)
     except (TypeError, ValueError):
@@ -190,7 +190,7 @@ def account_update(
                 "current_user": user,
                 "form": _account_form(user, submitted),
                 "errors": errors,
-                "now": datetime.now(timezone.utc),
+                "now": datetime.now(UTC),
                 "title": "Account · SmartReco",
             },
             status_code=400,

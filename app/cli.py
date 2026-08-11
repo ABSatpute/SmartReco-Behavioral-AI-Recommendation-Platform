@@ -17,8 +17,8 @@ import sys
 
 from app.database import Base, SessionLocal, engine
 from app.models import Product, User
-from app.services import products as product_service
 from app.services import auth as auth_service
+from app.services import products as product_service
 
 
 def create_admin(email: str, password: str, full_name: str = "Admin") -> None:

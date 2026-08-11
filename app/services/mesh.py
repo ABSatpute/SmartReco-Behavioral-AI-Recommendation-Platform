@@ -43,7 +43,7 @@ def chat_meta(
             messages=messages,
             **kwargs,
         )
-    except Exception as exc:  # noqa: BLE001 - surface as MeshError
+    except Exception as exc:
         logger.exception("Mesh chat failed")
         raise MeshError(str(exc)) from exc
     content = response.choices[0].message.content or ""
@@ -68,7 +68,7 @@ def embed(texts: list[str], model: str | None = None) -> list[list[float]]:
             model=model or settings.embedding_model,
             input=texts,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("Mesh embedding failed")
         raise MeshError(str(exc)) from exc
     ordered = sorted(response.data, key=lambda d: d.index)

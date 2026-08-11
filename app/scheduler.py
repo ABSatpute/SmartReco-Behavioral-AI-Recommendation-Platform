@@ -23,7 +23,7 @@ def _digest_job() -> None:
     try:
         result = run_digest()
         logger.info("Digest run complete: %s", result)
-    except Exception:  # noqa: BLE001 - a scheduler job must never crash silently
+    except Exception:
         logger.exception("Digest job failed")
 
 
@@ -31,7 +31,7 @@ def _session_job() -> None:
     try:
         result = run_session_digests()
         logger.info("Session-digest sweep complete: %s", result)
-    except Exception:  # noqa: BLE001 - a scheduler job must never crash silently
+    except Exception:
         logger.exception("Session-digest sweep failed")
 
 

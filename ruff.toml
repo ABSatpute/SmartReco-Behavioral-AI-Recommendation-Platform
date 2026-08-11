@@ -1,0 +1,17 @@
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "venv", "__pycache__", "build", "dist", "data", "eda"]
+
+[lint]
+# E/W = pycodestyle, F = pyflakes, I = import order, UP = pyupgrade,
+# B = bugbear, C4 = comprehensions, RUF = ruff-specific
+select = ["E", "W", "F", "I", "UP", "B", "C4", "RUF"]
+ignore = [
+  "E501",   # line length is enforced by ruff format / formatter instead
+  "UP006",  # allow non-typing imports of types for clarity
+  "RUF012", # mutable class attributes are fine for pydantic defaults
+  "B008",   # FastAPI's Depends() in argument defaults is the framework pattern
+]
+
+[lint.isort]
+known-first-party = ["app"]

@@ -148,7 +148,7 @@ def run(
 
     try:
         agent_graph.invoke(state)
-    except Exception as exc:  # noqa: BLE001 - never crash the request; trace it
+    except Exception as exc:
         logger.exception("Agent run failed for user %s", user.id)
         db.add(
             AgentRun(
@@ -234,7 +234,7 @@ def _background_worker(user_id: int) -> None:
             run(db, user, source="auto")
         finally:
             db.close()
-    except Exception:  # noqa: BLE001 - background work must never crash the app
+    except Exception:
         logger.exception("Background recommendation run failed for user %s", user_id)
     finally:
         with _RUNNING_LOCK:

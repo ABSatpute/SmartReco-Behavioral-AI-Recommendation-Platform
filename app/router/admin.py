@@ -1,7 +1,6 @@
 import json as jsonlib
-import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import anyio
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -36,7 +35,7 @@ router = APIRouter(prefix="/admin")
 def _vector_count() -> int | None:
     try:
         return get_vector_store().count()
-    except Exception:  # noqa: BLE001 - vector store may be down/misconfigured
+    except Exception:
         return None
 
 
@@ -1194,7 +1193,7 @@ def _validate_user_data(
             errors["email"] = "An account with this email already exists."
     digits_only = re.sub(r"[^\d]", "", data["mobile"])
     if not (7 <= len(digits_only) <= 15):
-        errors["mobile"] = "Enter a valid mobile number (7–15 digits)."
+        errors["mobile"] = "Enter a valid mobile number (7-15 digits)."
     try:
         age_val = int(age)
     except (TypeError, ValueError):

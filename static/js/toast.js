@@ -39,6 +39,9 @@
       var kv = parts[i].split("=");
       if (kv[0].trim() !== "smartreco_flash") continue;
       var payload = kv.slice(1).join("=");
+      // strip the server-side HMAC signature suffix (payload.signature)
+      var dot = payload.lastIndexOf(".");
+      if (dot > -1) payload = payload.slice(0, dot);
       try {
         var data = JSON.parse(decodeFlashValue(payload));
         if (data && data.message) toast(data.message, data.type || "success");

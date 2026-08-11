@@ -111,7 +111,7 @@ def send_telegram(chat_id: str, text: str) -> bool:
             logger.error("Telegram API error %s: %s", resp.status_code, resp.text[:500])
             return False
         return True
-    except Exception:  # noqa: BLE001 - failure must not break the digest job
+    except Exception:
         logger.exception("Telegram send failed to chat %s", chat_id)
         return False
 
@@ -161,7 +161,7 @@ def send_telegram_photos(chat_id: str, products: list[dict], max_photos: int = 5
             )
             return False
         return True
-    except Exception:  # noqa: BLE001 - failure must not break the digest job
+    except Exception:
         logger.exception("Telegram media send failed to chat %s", chat_id)
         return False
 
@@ -193,7 +193,7 @@ def _send_resend(to_email: str, subject: str, html: str, text: str) -> bool:
             )
             return False
         return True
-    except Exception:  # noqa: BLE001 - sending failure must not break the job
+    except Exception:
         logger.exception("Resend send failed to %s", to_email)
         return False
 
@@ -252,7 +252,7 @@ def _send_smtp(to_email: str, subject: str, html: str, text: str) -> bool:
                 )
                 return False
         return True
-    except Exception:  # noqa: BLE001 - sending failure must not break the job
+    except Exception:
         logger.exception("SMTP send failed to %s", to_email)
         return False
 
@@ -279,12 +279,11 @@ def _deliver_for_user(session: Session, user: User, summary: dict) -> bool:
     if "email" in settings.notification_channels_list:
         email_ok = send_email(user.email, subject, html, text)
 
-    tg_ok = None
     if (
         "telegram" in settings.notification_channels_list
         and user.telegram_chat_id
     ):
-        tg_ok = send_telegram(user.telegram_chat_id, text)
+        send_telegram(user.telegram_chat_id, text)
         send_telegram_photos(user.telegram_chat_id, products)
 
     # The email is the primary channel. Telegram is best-effort: a Telegram
@@ -329,8 +328,8 @@ def run_digest(db: Session | None = None) -> dict:
                 continue
 
             try:
-                handled = _deliver_for_user(session, user, summary)
-            except Exception:  # noqa: BLE001 - one user must not break the batch
+                _deliver_for_user(session, user, summary)
+            except Exception:
                 logger.exception("Digest failed for user %s", user_id)
                 session.rollback()
                 session.add(
@@ -497,7 +496,7 @@ def run_session_digests(db: Session | None = None) -> dict:
                 continue
             try:
                 status = _deliver_session_slot(session, browse, user, slot, now)
-            except Exception:  # noqa: BLE001 - one session must not break the sweep
+            except Exception:
                 logger.exception("Session digest failed for session %s", browse.id)
                 session.rollback()
                 status = "failed"

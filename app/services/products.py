@@ -64,7 +64,7 @@ def _embed_products(db: Session, products: list[Product]) -> dict[int, list[floa
     """Embed many products in one Mesh call (batched)."""
     texts = [_product_text(p) for p in products]
     vectors = mesh.embed(texts)
-    return {p.id: vec for p, vec in zip(products, vectors)}
+    return {p.id: vec for p, vec in zip(products, vectors, strict=True)}
 
 
 def _embed_chunk_resilient(db: Session, chunk: list[Product], attempts: int = 3) -> dict[int, list[float]]:
@@ -83,13 +83,11 @@ def _embed_chunk_resilient(db: Session, chunk: list[Product], attempts: int = 3)
 
 def _upsert_chunk_resilient(store, payload: list, attempts: int = 3) -> int:
     """Upsert one chunk with bounded retries on transient Pinecone failures."""
-    last: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
             store.upsert(payload)
             return len(payload)
-        except Exception as exc:  # noqa: BLE001 - Pinecone base except wraps network/timeout
-            last = exc
+        except Exception as exc:
             logger.warning("Vector upsert failed (attempt %s/%s): %s", attempt, attempts, exc)
             if attempt < attempts:
                 time.sleep(2 * attempt)
@@ -106,7 +104,7 @@ def _sync_products(db: Session, products: list[Product]) -> int:
         chunk = products[i : i + 50]
         try:
             vectors_by_id = _embed_chunk_resilient(db, chunk)
-        except Exception as exc:  # noqa: BLE001 - never let one chunk kill a full backfill
+        except Exception as exc:
             logger.error("Skipping chunk of %s products after embed failures: %s", len(chunk), exc)
             continue
         payload = []

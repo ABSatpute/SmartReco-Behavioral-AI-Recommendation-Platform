@@ -74,8 +74,8 @@ def _gate_langsmith() -> None:
         return
     global _langsmith_enabled
     try:
-        from langsmith.utils import get_tracer_project  # noqa: F401
         import langsmith  # noqa: F401
+        from langsmith.utils import get_tracer_project  # noqa: F401
 
         # langgraph reads these env vars to attach run/mid-run metadata.
         os.environ["LANGSMITH_API_KEY"] = key
@@ -84,7 +84,7 @@ def _gate_langsmith() -> None:
             os.environ["LANGSMITH_PROJECT"] = settings.app_project_name
         _langsmith_enabled = True
         logging.getLogger(__name__).info("LangSmith tracing enabled")
-    except Exception:  # noqa: BLE001 - never block startup on a tracing addon
+    except Exception:
         _langsmith_enabled = False
         logging.getLogger(__name__).warning(
             "LangSmith requested but unavailable; running without tracing"

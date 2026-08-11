@@ -79,7 +79,7 @@ class InMemoryVectorStore:
                         break
                 if not matched:
                     continue
-            dot = sum(a * b for a, b in zip(query_vector, values))
+            dot = sum(a * b for a, b in zip(query_vector, values, strict=True))
             score = dot / (qn * norm(values))
             scored.append(SearchHit(id=vector_id, score=score, metadata=meta))
         scored.sort(key=lambda h: h.score, reverse=True)

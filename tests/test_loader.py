@@ -4,7 +4,6 @@ import pytest
 
 from app.cli import clean_amazon_row
 from app.database import SessionLocal
-from app.models import Product
 from app.services import mesh as mesh_service
 from app.services import products as product_service
 from app.vector_store import InMemoryVectorStore

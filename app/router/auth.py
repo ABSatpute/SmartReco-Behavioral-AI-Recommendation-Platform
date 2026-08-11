@@ -100,7 +100,7 @@ def register(
         errors["email"] = "An account with this email already exists."
     digits_only = re.sub(r"[^\d]", "", mobile)
     if not (7 <= len(digits_only) <= 15):
-        errors["mobile"] = "Enter a valid mobile number (7–15 digits)."
+        errors["mobile"] = "Enter a valid mobile number (7-15 digits)."
     try:
         age_val = int(age)
     except (TypeError, ValueError):

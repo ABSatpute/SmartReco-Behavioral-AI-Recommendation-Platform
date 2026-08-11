@@ -115,7 +115,9 @@ def _buckets(range_key: str, now):
         else:
             b = now - timedelta(days=n - 1 - i)
             starts.append(b.replace(hour=0, minute=0, second=0, microsecond=0))
-    label = lambda b: f"{b.hour:02d}h" if hourly else b.strftime("%m-%d")
+    def label(b) -> str:
+        return f"{b.hour:02d}h" if hourly else b.strftime("%m-%d")
+
     return starts, (3600 if hourly else 86400), label
 
 
@@ -172,13 +174,14 @@ def agent_metrics(
                 hour=0, minute=0, second=0, microsecond=0
             )
             starts.append(day)
-        bucket_sec, hourly = 86400, False
-        label = lambda b: b.strftime("%m-%d")
+        bucket_sec = 86400
+
+        def label(b) -> str:
+            return b.strftime("%m-%d")
+
     else:
         starts, bucket_sec, label = _buckets(range_key, now)
-        hourly = range_key == "24h"
 
-    indexed = {b: i for i, b in enumerate(starts)}
     n = len(starts)
     ok_series = [0] * n
     fail_series = [0] * n
