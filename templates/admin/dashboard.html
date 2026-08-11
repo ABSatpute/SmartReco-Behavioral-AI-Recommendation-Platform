@@ -42,7 +42,7 @@
   <article class="kpi" data-kpi="totals.runs" data-format="int">
     <div class="kpi-value">—</div>
     <div class="kpi-label">Agent runs</div>
-    <div class="kpi-sub" data-sub-path="totals.successful_runs" data-sub-format="int" data-sub-suffix=" ok"></div>
+    <div class="kpi-sub" data-sub-path="totals.skipped_runs" data-sub-format="int" data-sub-suffix=" skipped"></div>
   </article>
   <article class="kpi" data-kpi="llm.success_rate" data-format="pct">
     <div class="kpi-value">—</div>
@@ -143,10 +143,14 @@
         <td class="num">{{ run.total_tokens }}</td>
         <td class="num">{{ run.duration_ms }}</td>
         <td>
-          {% if run.error %}
-            <span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>
-          {% else %}
+          {% if run.status == "ok" %}
             <span class="badge badge-active">ok</span>
+          {% elif run.status == "skipped" %}
+            <span class="badge badge-inactive">skipped</span>
+            <span class="muted" title="{{ run.error }}">detail</span>
+          {% else %}
+            <span class="danger">failed</span>
+            <span class="muted" title="{{ run.error }}">detail</span>
           {% endif %}
         </td>
         <td>{{ run.created_at | string }}</td>
@@ -193,5 +197,5 @@
 
 {% block scripts %}
 <script id="dashboard-data" type="application/json">{{ stats | tojson }}</script>
-<script src="{{ url_for('static', path='/js/dashboard.js') }}?v=2"></script>
+<script src="{{ url_for('static', path='/js/dashboard.js') }}?v=3"></script>
 {% endblock %}

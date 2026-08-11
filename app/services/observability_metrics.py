@@ -92,6 +92,13 @@ def is_skip_run(error: str | None) -> bool:
     return bool(error and (error.startswith("skipped:") or error == "no candidates to present"))
 
 
+def run_status(error: str | None) -> str:
+    """Classify a run as ok / skipped / failed, matching the observability UI."""
+    if is_skip_run(error):
+        return "skipped"
+    return "failed" if error else "ok"
+
+
 def _buckets(range_key: str, now):
     """Return (bucket_start_times, bucket_seconds, hourly, label_fn)."""
     if range_key == "all":

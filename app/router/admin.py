@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import anyio
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
-from sqlalchemy import String, func
+from sqlalchemy import String, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -78,9 +78,21 @@ def _dashboard_stats(db: Session) -> dict:
     event_count = db.query(func.count(UserEvent.id)).scalar() or 0
     reco_count = db.query(func.count(Recommendation.id)).scalar() or 0
     total_runs = db.query(func.count(AgentRun.id)).scalar() or 0
-    failed_runs = (
-        db.query(func.count(AgentRun.id)).filter(AgentRun.error.isnot(None)).scalar() or 0
+    ok_runs = (
+        db.query(func.count(AgentRun.id)).filter(AgentRun.error.is_(None)).scalar() or 0
     )
+    skipped_runs = (
+        db.query(func.count(AgentRun.id))
+        .filter(
+            or_(
+                AgentRun.error.like("skipped:%"),
+                AgentRun.error == "no candidates to present",
+            )
+        )
+        .scalar()
+        or 0
+    )
+    failed_runs = total_runs - ok_runs - skipped_runs
 
     users_today = db.query(func.count(User.id)).filter(User.created_at >= day_ago).scalar() or 0
     users_week = db.query(func.count(User.id)).filter(User.created_at >= week_ago).scalar() or 0
@@ -141,19 +153,40 @@ def _dashboard_stats(db: Session) -> dict:
     )
     run_fail = (
         db.query(func.date(AgentRun.created_at).label("day"), func.count(AgentRun.id))
-        .filter(AgentRun.created_at >= run_starts, AgentRun.error.isnot(None))
+        .filter(
+            AgentRun.created_at >= run_starts,
+            AgentRun.error.isnot(None),
+            ~or_(
+                AgentRun.error.like("skipped:%"),
+                AgentRun.error == "no candidates to present",
+            ),
+        )
+        .group_by(func.date(AgentRun.created_at))
+        .all()
+    )
+    run_skip = (
+        db.query(func.date(AgentRun.created_at).label("day"), func.count(AgentRun.id))
+        .filter(
+            AgentRun.created_at >= run_starts,
+            or_(
+                AgentRun.error.like("skipped:%"),
+                AgentRun.error == "no candidates to present",
+            ),
+        )
         .group_by(func.date(AgentRun.created_at))
         .all()
     )
     ok_by_day = {_day_key(d): c for d, c in run_ok}
     fail_by_day = {_day_key(d): c for d, c in run_fail}
-    runs_labels, runs_ok, runs_fail = [], [], []
+    skip_by_day = {_day_key(d): c for d, c in run_skip}
+    runs_labels, runs_ok, runs_fail, runs_skip = [], [], [], []
     for i in range(14):
         day = run_starts + timedelta(days=i)
         key = _day_key(day)
         runs_labels.append(day.strftime("%b %d"))
         runs_ok.append(ok_by_day.get(key, 0))
         runs_fail.append(fail_by_day.get(key, 0))
+        runs_skip.append(skip_by_day.get(key, 0))
 
     mix_rows = (
         db.query(UserEvent.event_type, func.count(UserEvent.id))
@@ -220,7 +253,9 @@ def _dashboard_stats(db: Session) -> dict:
     avg_duration = db.query(func.avg(AgentRun.duration_ms)).scalar()
 
     success_rate = (
-        round((total_runs - failed_runs) / total_runs * 100, 1) if total_runs else None
+        round(ok_runs / (ok_runs + failed_runs) * 100, 1)
+        if (ok_runs + failed_runs)
+        else None
     )
     peak_hour = max(hour_hist) if any(hour_hist) else None
     peak_hour_idx = hour_hist.index(peak_hour) if peak_hour is not None else None
@@ -253,6 +288,11 @@ def _dashboard_stats(db: Session) -> dict:
             "into an add-to-cart."
         )
     if total_runs:
+        if skipped_runs:
+            insights.append(
+                f"{skipped_runs} of {total_runs} recommendation runs were skipped on "
+                "insufficient signal - not failures, no recommendation made."
+            )
         insights.append(
             f"Recommendation agent: {success_rate}% success, "
             f"{round(float(avg_tokens or 0))} tokens / run on average."
@@ -268,7 +308,8 @@ def _dashboard_stats(db: Session) -> dict:
             "reco_count": reco_count,
             "runs": total_runs,
             "failed_runs": failed_runs,
-            "successful_runs": total_runs - failed_runs,
+            "successful_runs": ok_runs,
+            "skipped_runs": skipped_runs,
             "vector_count": vector_count,
         },
         "delta": {
@@ -294,7 +335,7 @@ def _dashboard_stats(db: Session) -> dict:
             "events": events_series,
             "users": users_series,
             "reco": reco_series,
-            "runs": {"labels": runs_labels, "ok": runs_ok, "fail": runs_fail},
+            "runs": {"labels": runs_labels, "ok": runs_ok, "fail": runs_fail, "skip": runs_skip},
         },
         "mixes": {
             "event_mix": event_mix,
@@ -326,6 +367,19 @@ def admin_dashboard(
     recent_runs = (
         db.query(AgentRun).order_by(AgentRun.created_at.desc()).limit(6).all()
     )
+    recent_runs = [
+        {
+            "id": r.id,
+            "trigger": r.trigger,
+            "llm_calls": r.llm_calls,
+            "total_tokens": r.total_tokens,
+            "duration_ms": r.duration_ms,
+            "error": r.error,
+            "status": observability_metrics.run_status(r.error),
+            "created_at": r.created_at,
+        }
+        for r in recent_runs
+    ]
     recent_products = (
         db.query(Product).order_by(Product.created_at.desc()).limit(6).all()
     )
