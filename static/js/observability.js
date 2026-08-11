@@ -43,11 +43,12 @@
     container.appendChild(wrap);
   }
 
-  function stackedChart(container, labels, ok, fail) {
+  function stackedChart(container, labels, ok, fail, skip) {
     ok = ok || [];
     fail = fail || [];
-    if (!ok.length && !fail.length) { emptyState(container); return; }
-    var max = Math.max.apply(null, ok.concat(fail).concat([1]));
+    skip = skip || [];
+    if (!ok.length && !fail.length && !skip.length) { emptyState(container); return; }
+    var max = Math.max.apply(null, ok.concat(fail).concat(skip).concat([1]));
     var wrap = el("div", "hbar-wrap");
     labels.forEach(function (l, i) {
       var col = el("div", "hbar-col");
@@ -55,17 +56,21 @@
       var okSeg = el("div", "hbar hbar-ok");
       okSeg.title = l + ": " + (ok[i] || 0) + " ok";
       okSeg.style.height = Math.max(0, (ok[i] / max) * 100) + "%";
+      var skipSeg = el("div", "hbar hbar-skip");
+      skipSeg.title = l + ": " + (skip[i] || 0) + " skipped";
+      skipSeg.style.height = Math.max(0, (skip[i] / max) * 100) + "%";
       var failSeg = el("div", "hbar hbar-fail");
       failSeg.title = l + ": " + (fail[i] || 0) + " failed";
       failSeg.style.height = Math.max(0, (fail[i] / max) * 100) + "%";
       stack.appendChild(okSeg);
+      stack.appendChild(skipSeg);
       stack.appendChild(failSeg);
       col.appendChild(stack);
       col.appendChild(el("div", "hbar-label", i % 2 === 0 || i === labels.length - 1 ? l : ""));
       wrap.appendChild(col);
     });
     container.textContent = "";
-    wrap.appendChild(el("div", "bar-legend", "\u25A0 ok  \u25A0 failed"));
+    wrap.appendChild(el("div", "bar-legend", "\u25A0 ok  \u25A0 skipped  \u25A0 failed"));
     container.appendChild(wrap);
   }
 
@@ -142,7 +147,7 @@
   function renderAll(data) {
     if (!data) return;
     var charts = {
-      runsSeries: function (c) { stackedChart(c, data.series.runs.labels, data.series.runs.ok, data.series.runs.fail); },
+      runsSeries: function (c) { stackedChart(c, data.series.runs.labels, data.series.runs.ok, data.series.runs.fail, data.series.runs.skip); },
       tokensSeries: function (c) { barChart(c, data.series.tokens.labels, data.series.tokens.counts); },
       costSeries: function (c) { barChart(c, data.series.cost.labels, data.series.cost.counts); },
       nodeLatency: function (c) { hbarChart(c, data.nodes.latency); },

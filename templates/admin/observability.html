@@ -35,6 +35,7 @@
       <option value="">Any</option>
       <option value="ok" {% if status_selected == 'ok' %}selected{% endif %}>ok</option>
       <option value="failed" {% if status_selected == 'failed' %}selected{% endif %}>failed</option>
+      <option value="skipped" {% if status_selected == 'skipped' %}selected{% endif %}>skipped</option>
     </select>
   </label>
   <button class="btn" type="submit">Apply</button>
@@ -43,8 +44,9 @@
 
 <section class="stat-grid" style="margin-top:1rem">
   <div class="stat"><span class="stat-value">{{ summary.total_runs }}</span><span class="stat-label">Runs in window</span></div>
-  <div class="stat"><span class="stat-value">{{ summary.success_rate }}%</span><span class="stat-label">Success rate</span></div>
-  <div class="stat"><span class="stat-value">{{ summary.failed_runs }}</span><span class="stat-label">Failed</span></div>
+  <div class="stat"><span class="stat-value">{{ summary.success_rate }}%</span><span class="stat-label">Success rate <span class="muted">(of actionable)</span></span></div>
+  <div class="stat"><span class="stat-value">{{ summary.failed_runs }}</span><span class="stat-label">Failed <span class="muted">(real errors)</span></span></div>
+  <div class="stat"><span class="stat-value">{{ summary.skipped_runs }}</span><span class="stat-label">Skipped <span class="muted">(low signal)</span></span></div>
   <div class="stat"><span class="stat-value">{{ summary.avg_duration_ms }}</span><span class="stat-label">Avg latency · ms <span class="muted">(p95 {{ summary.p95_duration_ms }} ms)</span></span></div>
   <div class="stat"><span class="stat-value">{{ summary.avg_tokens }}</span><span class="stat-label">Avg tokens · run</span></div>
   <div class="stat"><span class="stat-value">${{ "%.4f"|format(summary.est_cost_usd) }}</span><span class="stat-label">Est. cost <span class="muted">(blended rate)</span></span></div>
@@ -55,7 +57,7 @@
 
 <section class="dash-grid">
   <div class="panel">
-    <h3>Runs · ok vs failed</h3>
+    <h3>Runs · ok vs skipped vs failed</h3>
     <div class="chart" data-chart="runsSeries"></div>
   </div>
   <div class="panel">
@@ -123,7 +125,7 @@
         <td class="num">${{ "%.4f"|format(run.cost_usd) }}</td>
         <td>
           {% if run.error %}
-            {% if run.error.startswith('skipped') %}<span class="badge badge-inactive">skipped</span>
+            {% if run.error.startswith('skipped') or run.error == 'no candidates to present' %}<span class="badge badge-inactive">skipped</span>
             {% else %}<span class="danger">failed</span> <span class="muted" title="{{ run.error }}">detail</span>{% endif %}
           {% else %}
             <span class="badge badge-active">ok</span>
@@ -142,5 +144,5 @@
 
 {% block scripts %}
 <script id="observability-data" type="application/json">{{ metrics_json | tojson }}</script>
-<script src="{{ url_for('static', path='/js/observability.js') }}?v=1"></script>
+<script src="{{ url_for('static', path='/js/observability.js') }}?v=2"></script>
 {% endblock %}

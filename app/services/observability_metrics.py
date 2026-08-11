@@ -87,6 +87,11 @@ def _error_label(error: str) -> str:
     return error[:60]
 
 
+def is_skip_run(error: str | None) -> bool:
+    """Runs that intentionally declined to recommend (not real failures)."""
+    return bool(error and (error.startswith("skipped:") or error == "no candidates to present"))
+
+
 def _buckets(range_key: str, now):
     """Return (bucket_start_times, bucket_seconds, hourly, label_fn)."""
     if range_key == "all":
@@ -141,9 +146,14 @@ def agent_metrics(
         q = q.filter(AgentRun.trigger == trigger)
     if status == "ok":
         q = q.filter(AgentRun.error.is_(None))
-    elif status == "failed":
+    elif status in ("failed", "skipped"):
         q = q.filter(AgentRun.error.isnot(None))
     runs = q.order_by(AgentRun.created_at.desc()).all()
+
+    if status == "failed":
+        runs = [r for r in runs if not is_skip_run(r.error)]
+    elif status == "skipped":
+        runs = [r for r in runs if is_skip_run(r.error)]
 
     if range_key == "all":
         start = runs[-1].created_at if runs else now
@@ -165,6 +175,7 @@ def agent_metrics(
     n = len(starts)
     ok_series = [0] * n
     fail_series = [0] * n
+    skip_series = [0] * n
     token_series = [0] * n
     cost_series = [0.0] * n
 
@@ -191,8 +202,11 @@ def agent_metrics(
         idx = _bucket_idx(run.created_at)
         steps = run.steps if isinstance(run.steps, list) else []
         ok = run.error is None
+        skip = (not ok) and is_skip_run(run.error)
         if ok:
             ok_series[idx] += 1
+        elif skip:
+            skip_series[idx] += 1
         else:
             fail_series[idx] += 1
         token_series[idx] += run.total_tokens
@@ -210,9 +224,7 @@ def agent_metrics(
             s.get("status") == "fallback" for s in steps if s.get("node") != "meta"
         ):
             fallback_runs += 1
-        if run.error and (
-            run.error.startswith("skipped:") or run.error == "no candidates to present"
-        ):
+        if skip:
             skipped_runs += 1
 
         # per-node aggregation from enriched steps
@@ -230,16 +242,18 @@ def agent_metrics(
                 A["tokens"].append(int(s["tokens_delta"]))
             if isinstance(s.get("llm_delta"), (int, float)):
                 A["calls"].append(int(s["llm_delta"]))
-        if run.error:
+        if run.error and not skip:
             flagged = [s for s in steps if s.get("status") not in ("ok", "meta", None)]
             target = flagged[-1] if flagged else (steps[-1] if steps else None)
             if target:
                 node = target.get("node") or "?"
                 A = nodes.setdefault(node, _new_node())
                 A["fail"] += 1
-            errors.setdefault(_error_label(run.error), {"count": 0, "example": ""})
-            errors[_error_label(run.error)]["count"] += 1
-            errors[_error_label(run.error)]["example"] = errors[_error_label(run.error)]["example"] or run.error
+            label = _error_label(run.error)
+            if label != "skipped":
+                entry = errors.setdefault(label, {"count": 0, "example": ""})
+                entry["count"] += 1
+                entry["example"] = entry["example"] or run.error
 
     # event ingestion stats for the window
     event_q = db.query(UserEvent)
@@ -285,13 +299,19 @@ def agent_metrics(
 
     total_runs = len(runs)
     successful = sum(1 for r in runs if r.error is None)
-    failed = total_runs - successful
-    success_rate = round(successful / total_runs * 100) if total_runs else 0
+    failed = total_runs - skipped_runs - successful
+    effective = successful + failed
+    success_rate = round(successful / effective * 100) if effective else 0
 
     insights = []
     if total_runs:
+        if skipped_runs:
+            insights.append(
+                f"{skipped_runs} of {total_runs} runs ({round(skipped_runs / total_runs * 100)}%) "
+                f"were skipped on insufficient signal — no failure, no recommendation made."
+            )
         insights.append(
-            f"{success_rate}% of {total_runs} agent runs succeeded in this window "
+            f"{success_rate}% of {effective} actionable runs succeeded in this window "
             f"(p95 latency {_percentile(durations, 0.95):,} ms)."
         )
         if durations:
@@ -332,7 +352,7 @@ def agent_metrics(
             "events_24h": events_24h,
         },
         "series": {
-            "runs": {"labels": labels, "ok": ok_series, "fail": fail_series},
+            "runs": {"labels": labels, "ok": ok_series, "fail": fail_series, "skip": skip_series},
             "tokens": {"labels": labels, "counts": token_series},
             "cost": {"labels": labels, "counts": [round(c, 4) for c in cost_series]},
         },

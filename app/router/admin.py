@@ -734,8 +734,13 @@ def observability_page(
         recent_q = recent_q.filter(AgentRun.trigger == trigger)
     if status == "ok":
         recent_q = recent_q.filter(AgentRun.error.is_(None))
-    elif status == "failed":
+    elif status in ("failed", "skipped"):
         recent_q = recent_q.filter(AgentRun.error.isnot(None))
+    recent_queried = recent_q.order_by(AgentRun.created_at.desc()).limit(200).all()
+    if status == "failed":
+        recent_queried = [r for r in recent_queried if not observability_metrics.is_skip_run(r.error)]
+    elif status == "skipped":
+        recent_queried = [r for r in recent_queried if observability_metrics.is_skip_run(r.error)]
     recent_runs = [
         {
             "id": r.id,
@@ -748,7 +753,7 @@ def observability_page(
             "created_at": r.created_at,
             "cost_usd": observability_metrics.estimate_run_cost(r),
         }
-        for r in recent_q.order_by(AgentRun.created_at.desc()).limit(30).all()
+        for r in recent_queried[:30]
     ]
 
     return templates.TemplateResponse(
