@@ -13,6 +13,7 @@ through the **Mesh API** gateway (OpenAI-compatible).
 ## Live demo
 
 **Live demo:** <https://smartreco-sogc.onrender.com>
+**Demo video:** <https://youtu.be/fFkVNoiMjIg>
 
 Register an account and browse / search / add to cart, then open **My
 Recommendations** to see the agent's personalized picks. Admins can explore the
