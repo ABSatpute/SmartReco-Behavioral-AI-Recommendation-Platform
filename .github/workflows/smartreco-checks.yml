@@ -1,11 +1,6 @@
 name: SmartReco Checks
 
-# Runs automatically on every push to main and on demand (workflow_dispatch).
-# Requires the SUBMISSION_TOKEN and MESH_API_KEY repository secrets to be set.
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+on: [push]
 
 permissions:
   id-token: write      # required — without this the OIDC env vars do not exist
