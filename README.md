@@ -1,12 +1,12 @@
 # SmartReco — Behavioral AI Recommendation Platform
 
-SmartReco watches how a user actually behaves (searches, product views, clicks,
-cart intent) and turns that into **personalized, persuasive product
-recommendations** — powered by a LangGraph reasoning agent that retrieves from a
-Pinecone vector store and generates grounded narratives.
+SmartReco watches how a user actually behaves — searches, product views, clicks,
+cart intent, time spent — and turns that into **personalized, persuasive product
+recommendations** powered by a **LangGraph reasoning agent** that retrieves from a
+**Pinecone** vector store and generates **catalog-grounded** narratives.
 
 Built for the **SmartReco Build Challenge 2026**. All LLM and embedding calls go
-through the **Mesh API** gateway (OpenAI-compatible).
+through the **Mesh API** gateway (OpenAI-compatible). Live: <https://smartreco-sogc.onrender.com>
 
 ---
 
@@ -14,60 +14,68 @@ through the **Mesh API** gateway (OpenAI-compatible).
 
 | Feature | Detail |
 |---|---|
-| **Agentic reasoning (LangGraph)** | Explicit workflow: `analyze → decide → retrieve → evaluate → refine → generate → store` |
+| **Agentic reasoning (LangGraph)** | Explicit 7-node workflow: `analyze → decide → retrieve → evaluate → refine → generate → store` |
 | **Retrieval polish** | Refine loops rewrite queries, loosen filters, and re-retrieve (max 2 loops) before settling |
-| **Proactive email digests (APScheduler)** | Daily personalized email for active users, idempotent per user per day |
-| **Observability** | `trace_id` propagation, structured JSON logs, `agent_runs` trace, admin page, optional LangSmith tracing |
-| **Grounded output** | Hallucinated product ids are rejected and regenerated; catalog is the only source of truth |
+| **Proactive delivery** | Daily personalized digest via **email and Telegram** (APScheduler in-process + Render Cron job), idempotent per user per day |
+| **Observability** | `trace_id` propagation, structured JSON logs, `agent_runs` trace, admin observability page with stats/charts + per-run detail, optional LangSmith tracing |
+| **Grounded output** | Hallucinated product ids are rejected and regenerated; the catalog is the only source of truth |
 | **Efficiency** | No LLM call on a page view — trigger policy, cooldown, and DB-cached recommendations |
+| **Full storefront** | Amazon-pattern catalog, search, cart + checkout, guest-cart merge, account/profile pages |
+| **Live activity feed** | Admin page streaming real-time behavioral events over SSE |
+| **Admin user management** | Create / edit / delete users with role assignment |
 
 ---
 
 ## Architecture
 
 ```
-Browser (Jinja2 + JS tracker)
-   │  POST /api/events/batch   (batched, beacon on unload)
+Browser (Jinja2 + JS tracker — batched, throttled, beacon-on-unload)
+   │  POST /api/events/batch
    ▼
 FastAPI app
-   ├── Auth/session layer
-   ├── Product CRUD ──► PostgreSQL ──► Pinecone (dual-write, kept in sync)
-   ├── Event ingest (validates, batches, persists)
+   ├── Auth/session layer (bcrypt + DB session cookie)
+   ├── Catalog + admin users ──► PostgreSQL ──► Pinecone (dual-write, in sync)
+   ├── Event ingest (validates, batches, persists) ──► Live Activity SSE
+   ├── Cart / checkout, browse sessions
    ├── Recommendation service (cache + trigger policy)
    │        │
    │        ▼
-   │   Agent engine (LangGraph workflow)  ──► Mesh API (LLM + embeddings)
-   │        │
-   │        ▼
-   │   Pinecone retrieval (RAG, grounded in real catalog)
+   │   Agent engine (LangGraph)  ──► Mesh API (LLM + embeddings)
+   │        │                        ▼
+   │        └────────── Pinecone retrieval (RAG, grounded in real catalog)
    │        ▼
    ├── Recommendations stored in DB, served to UI
-   └── APScheduler ──► daily digest agent run + email send
+   ├── APScheduler ──► daily digest agent run ──► email + Telegram
+   └── Render Cron (/cron/digest, /cron/sessions) for exact-time delivery
         └── Observability: agent_runs trace + JSON logs (optional LangSmith)
 ```
 
-### Trigger policy (judged criteria)
+### Trigger policy (judged efficiency criterion)
 
 The agent runs only when **any** of these fire — never on a bare page view:
 
 1. ≥ 3 meaningful events (`product_view`, `search`, `product_click`, `add_to_cart`) since the last run,
 2. cooldown elapsed (default 30 min) **and** ≥ 1 new meaningful event,
 3. the user clicks "Refresh recommendations",
-4. the daily digest scheduler fires.
+4. the daily digest scheduler / cron fires.
 
-The latest valid recommendation is always served from the DB cache.
+The latest valid recommendation is always served from the DB cache (`valid_until`).
 
 ### Agent workflow (`app/agent/`)
 
 LangGraph `StateGraph` with 7 nodes (`graph.py`):
 
 1. **analyze** — build an `InterestProfile` (top themes, engagement, urgency, search intents) from recent events.
-2. **decide** — insufficient signal? Short-circuit to `store` (reuse/skip).
+2. **decide** — insufficient signal? Short-circuit to `store` (reuse/skip), no LLM generation.
 3. **retrieve** — build 1–3 queries → embed via Mesh → Pinecone search with metadata filters → dedupe & merge.
 4. **evaluate** — score candidates (semantic similarity + profile-keyword overlap + engagement weight); below threshold → refine.
 5. **refine** — rewrite/expand queries, re-embed, re-retrieve (max 2 loops).
 6. **generate** — LLM writes a personalized headline, persuasive narrative, and ranked picks with rationales — grounded only in retrieved candidates.
 7. **store** — persist `recommendations`, `recommendation_items`, and the `agent_runs` trace; invalidate old ones.
+
+Skips are **not** failures: a run that deliberately declines to recommend (insufficient
+signal) is marked `skipped`, excluded from failure counts, and surfaced separately in
+both the dashboard and observability.
 
 ### Grounding guarantee
 
@@ -79,12 +87,14 @@ else triggers a regeneration (max 2 retries), then a catalog-grounded fallback.
 ## Tech stack
 
 - **Backend:** FastAPI (Python 3.11+), SQLAlchemy 2, Jinja2
-- **Database:** PostgreSQL only (no SQLite anywhere) — JSONB columns, `tsvector`-ready
+- **Database:** PostgreSQL only (no SQLite anywhere) — JSONB columns
 - **Vector store:** Pinecone (serverless), index `smartreco` (1536-dim, cosine)
-- **LLM/embeddings:** Mesh API (`openai/gpt-4o` for narrative, `minimax/m2-her` for analysis, `openai/text-embedding-3-small` for embeddings)
+- **LLM/embeddings:** Mesh API (`openai/gpt-4o` narrative, `minimax/m2-her` analysis, `openai/text-embedding-3-small` embeddings)
 - **Agent:** LangGraph
-- **Scheduler:** APScheduler
+- **Scheduler:** APScheduler (+ Render Cron endpoints)
+- **Notifications:** SMTP email + Telegram Bot API
 - **Auth:** bcrypt + DB-backed session cookies (HttpOnly, SameSite=Lax)
+- **Live feed:** Server-Sent Events (admin)
 
 ---
 
@@ -93,10 +103,10 @@ else triggers a regeneration (max 2 retries), then a catalog-grounded fallback.
 ### 1. Prerequisites
 
 - Python 3.11+
-- Docker (for local PostgreSQL)
+- Docker (local PostgreSQL)
 - A Mesh API key (`rsk_...`) — all LLM/embedding calls route through Mesh
 - (Optional) a Pinecone API key + a `smartreco` index
-- (Optional) a LangSmith API key for tracing
+- (Optional) LangSmith, SMTP, and/or Telegram credentials
 
 ### 2. Start PostgreSQL
 
@@ -104,13 +114,13 @@ else triggers a regeneration (max 2 retries), then a catalog-grounded fallback.
 docker compose up -d db
 ```
 
-This creates both databases (main `smartreco` + test `smartreco_test`).
+Creates both `smartreco` and `smartreco_test`.
 
 ### 3. Configure environment
 
 ```bash
 cp .env.example .env
-# then fill in MESH_API_KEY (required), PINECONE_API_KEY, SMTP_*, LANGSMITH_API_KEY
+# fill in MESH_API_KEY (required), PINECONE_API_KEY, SMTP_* / TELEGRAM_BOT_TOKEN, LANGSMITH_API_KEY
 ```
 
 ### 4. Install and run
@@ -123,8 +133,8 @@ python -m app.cli seed_demo     # demo products + admin@smartreco.dev / adminpas
 uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000. Register an account and browse/search products —
-then visit **My Recommendations**.
+Open http://localhost:8000. Register an account and browse/search/products/cart —
+then visit **My Recommendations** (or the admin Observability page).
 
 ---
 
@@ -133,35 +143,43 @@ then visit **My Recommendations**.
 | Command | Purpose |
 |---|---|
 | `create_admin --email E --password P` | Create an admin user |
-| `seed_demo` | Seed 8 demo products + demo admin |
+| `seed_demo` | Seed demo products + demo admin |
 | `load_amazon --csv PATH [--limit N] [--category S]` | Import Amazon UK 2023 dataset |
 | `resync_vectors` | Re-embed all active products into Pinecone (backfill) |
 | `check_vectors` | Report vector-store vs SQL product counts |
-| `digest` | Run the daily digest now (dev/debug) |
+| `run_digest_now` | Run the daily digest now (dev/debug) |
+| `set_telegram --email E --chat-id ID` | Link a Telegram chat for a user |
+| `telegram_chats` | List registered Telegram chats |
+| `test_email --to E [--message M]` | Send a test email |
 
 ---
 
 ## Tests
 
-Tests run against a PostgreSQL database (`smartreco_test`) — configured via
-`DATABASE_URL` in `tests/conftest.py`. They mock Mesh API and use an in-memory
-vector store, so no network or keys are needed.
+Tests run against PostgreSQL (`smartreco_test`), mock Mesh API, and use an in-memory
+vector store — no network or keys needed.
 
 ```bash
 python -m pytest
 ```
 
-Coverage: auth, product dual-write sync, event ingest, trigger policy, agent
-grounding validation, digest idempotency, admin authorization, observability.
+**90 tests** across 11 files covering: auth, product dual-write sync, event ingest,
+trigger policy, agent grounding (rejects hallucinated ids), digest idempotency
+(email + telegram), cart, browse sessions, live activity/SSE, admin authorization,
+and observability. A fixture terminates idle-in-transaction connections before each
+DDL reset so the whole suite runs without teardown deadlocks.
 
 ---
 
 ## Observability
 
 - **`agent_runs`** table records every agent run: steps, LLM calls, tokens, duration, errors.
-- **Admin → Observability** page renders recent runs + stats.
-- **Structured JSON logs** with a `trace_id` (echoed as the `x-trace-id` response header).
-- **LangSmith**: set `LANGSMITH_API_KEY` in `.env` to also export LangGraph traces to LangSmith.
+- **Admin → Observability** renders KPIs, ok/skipped/failed charts, trigger & failure
+  breakdowns, cost estimates, filters, and a per-run **trace detail** page.
+- **Admin → Dashboard** shows the same skipped/failed reclassification plus a live chart.
+- **Admin → Live Activity** streams events over SSE in real time.
+- **Structured JSON logs** with a `trace_id` (echoed as the `x-trace-id` header).
+- **LangSmith**: set `LANGSMITH_API_KEY` to also export LangGraph traces.
 
 ---
 
@@ -169,20 +187,27 @@ grounding validation, digest idempotency, admin authorization, observability.
 
 ```
 app/
-  main.py               FastAPI app, lifespan (DB init, scheduler, logging)
+  main.py               FastAPI app, lifespan (DB init, scheduler, logging, middleware)
   config.py             settings from .env
   database.py           SQLAlchemy engine/session
-  models.py             ORM models (users, sessions, products, events, recs, agent_runs, digests)
-  router/               pages.py, api.py, admin.py, auth.py
-  services/             products, events, recommendations, mesh, digest, auth
-  agent/                graph.py, nodes.py, prompts.py, profile.py
-  vector_store.py       Pinecone implementation + in-memory mock
-  scheduler.py          APScheduler daily digest job
-  observability.py      trace_id + JSON logging + LangSmith gate
-  cli.py                admin/seed/amazon/resync/digest commands
-templates/              Jinja2 pages + email template
-static/                 CSS + js/tracker.js (batched beacon tracking)
-tests/                  pytest suite
+  models.py             ORM: users, sessions, products, cart_items, browse_sessions,
+                        session_digests, user_events, recommendations,
+                        recommendation_items, agent_runs, email_digests
+  deps.py               auth deps + admin guard (require_admin)
+  schemas.py            Pydantic schemas
+  flash.py / utils.py / observability.py / rate_limit.py / templating.py
+  router/               pages.py, api.py, admin.py, auth.py, cron.py
+  services/             products, events, recommendations, mesh, digest, cart,
+                        browse_sessions, auth, observability_metrics
+  agent/                graph.py (7 nodes), nodes.py, prompts.py, profile.py
+  vector_store.py       Pinecone impl + in-memory/null mocks
+  scheduler.py          APScheduler digest jobs
+  cli.py                admin/seed/amazon/resync/digest/telegram/email commands
+templates/              Jinja2 pages (storefront, auth, account, cart, admin/*, emails/*)
+static/                 css + js/tracker.js (batched beacon tracking) + admin charts
+tests/                  pytest suite (11 files, 90 tests)
+data/                   sampled Amazon catalog (eda/sample_amazon.py)
+eda/                    Amazon EDA notebook + summary
 ```
 
 ---
@@ -190,14 +215,17 @@ tests/                  pytest suite
 ## Environment variables
 
 See [`.env.example`](.env.example) for the full list with defaults. Mandatory:
-`MESH_API_KEY`, `DATABASE_URL`. Everything else has a sensible default or is optional.
+`MESH_API_KEY`, `DATABASE_URL`. Others are optional or have sensible defaults.
+
 **Never commit `.env`.**
 
 ---
 
-## CI / submission
+## Deployment & CI / submission
 
-The repo includes `.github/workflows/smartreco-checks.yml`, the official
-Build Challenge 2026 check workflow. It runs on every push and reports results to
-the challenge server using an OIDC token plus the `SUBMISSION_TOKEN` and
-`MESH_API_KEY` GitHub secrets.
+- `render.yaml` defines the Postgres DB + web service and auto-deploys from `main`
+  to <https://smartreco-sogc.onrender.com>.
+- `.github/workflows/smartreco-checks.yml` — the official Build Challenge 2026 check
+  workflow (compile + dependency checks, plus the advisory README/.env/.gitignore checks).
+- GitHub secrets used: `MESH_API_KEY`, `SUBMISSION_TOKEN`, plus Render secrets for
+  Pinecone/SMTP/Telegram.
