@@ -825,7 +825,9 @@ img { max-width: 100%; }
   border-radius: 4px;
   padding: 0.1rem 0.35rem;
 }
-.bar-legend { position: absolute; right: 0; top: 0; font-size: 0.62rem; color: var(--c-muted); white-space: nowrap; }
+.bar-legend { position: absolute; right: 0; top: 0; font-size: 0.62rem; color: var(--c-muted); white-space: nowrap; display: flex; align-items: center; gap: 0.35rem; }
+.legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+.legend-sep { width: 0.4rem; }
 
 .donut-row { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
 .donut {

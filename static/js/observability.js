@@ -70,8 +70,21 @@
       wrap.appendChild(col);
     });
     container.textContent = "";
-    wrap.appendChild(el("div", "bar-legend", "\u25A0 ok  \u25A0 skipped  \u25A0 failed"));
+    var legend = buildLegend([["var(--c-success)", "ok"], ["var(--c-muted)", "skipped"], ["var(--c-danger)", "failed"]]);
+    wrap.appendChild(legend);
     container.appendChild(wrap);
+  }
+
+  function buildLegend(items) {
+    var legend = el("div", "bar-legend");
+    items.forEach(function (it, i) {
+      var square = el("span", "legend-dot");
+      square.style.background = it[0];
+      legend.appendChild(square);
+      legend.appendChild(el("span", "legend-label", it[1]));
+      if (i < items.length - 1) legend.appendChild(el("span", "legend-sep"));
+    });
+    return legend;
   }
 
   function donutChart(container, items) {
