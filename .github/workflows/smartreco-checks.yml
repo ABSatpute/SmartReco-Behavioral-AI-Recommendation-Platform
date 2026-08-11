@@ -1,10 +1,10 @@
 name: SmartReco Checks
 
-# Paused: run only on demand so pushes don't produce failure notifications until
-# the SUBMISSION_TOKEN / MESH_API_KEY secrets are configured and we're ready to
-# submit. Re-enable by switching back to `on: [push]`, or just use the "Run
-# workflow" button on the Actions tab.
+# Runs automatically on every push to main and on demand (workflow_dispatch).
+# Requires the SUBMISSION_TOKEN and MESH_API_KEY repository secrets to be set.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
