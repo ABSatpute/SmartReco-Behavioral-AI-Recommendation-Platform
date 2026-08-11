@@ -1333,3 +1333,65 @@ img { max-width: 100%; }
   .auth-body { padding: 1rem; align-items: flex-start; }
   .auth-card { padding: 1.5rem 1.25rem 1.3rem; border-radius: 14px; }
 }
+
+/* ===========================================================================
+   UI polish — buttons, dropdowns, tables (skinned on top of design tokens)
+   Follows best practice: solid state colors with visible hover/focus, WCAG
+   AA contrast, one consistent accent. Appended on purpose so these rules win
+   the cascade without touching the base system.
+   =========================================================================== */
+:root {
+  --c-primary-glow: rgba(79, 70, 229, 0.16);
+  --c-row-accent:   rgba(15, 23, 42, 0.035);
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+.btn:focus-visible { outline: 3px solid var(--c-focus-ring); outline-offset: 2px; box-shadow: 0 0 0 4px var(--c-primary-glow); }
+.btn-primary, .btn-cart { background: var(--c-primary); border-color: var(--c-primary); box-shadow: 0 2px 10px var(--c-primary-glow); }
+.btn-primary:hover, .btn-cart:hover { background: var(--c-primary-active); border-color: var(--c-primary-active); box-shadow: 0 4px 14px var(--c-primary-glow); }
+.btn-secondary { background: var(--c-secondary); border-color: var(--c-secondary); box-shadow: 0 2px 10px rgba(14, 165, 233, 0.18); }
+.btn-secondary:hover { background: var(--c-secondary-strong); border-color: var(--c-secondary-strong); }
+.btn-danger { background: var(--c-danger); border-color: var(--c-danger); box-shadow: 0 2px 10px rgba(220, 38, 38, 0.18); }
+.btn-danger:hover { background: var(--c-danger-strong); border-color: var(--c-danger-strong); }
+.btn-light { border: 1px solid var(--c-border-strong); }
+
+/* --- Dropdowns (selects) ------------------------------------------------ */
+.filter-bar select,
+.live-filter select,
+.form-field select,
+.auth-field select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--c-surface);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.55rem center;
+  background-size: 1.05em;
+  padding: 0.5rem 2.2rem 0.5rem 0.65rem;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--c-text);
+  cursor: pointer;
+}
+.filter-bar select:hover,
+.live-filter select:hover,
+.form-field select:hover,
+.auth-field select:hover { border-color: var(--c-primary); }
+.filter-bar select:focus-visible,
+.live-filter select:focus-visible,
+.form-field select:focus-visible,
+.auth-field select:focus-visible { outline: 3px solid var(--c-focus-ring); outline-offset: -1px; border-color: var(--c-primary); }
+.filter-bar label { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; color: var(--c-text-2); }
+
+/* --- Tables --------------------------------------------------------------------- */
+.table-scroll { border: 1px solid var(--c-border-strong); }
+.table thead th {
+  background: var(--c-primary-mist);
+  color: var(--c-primary-active);
+  border-bottom: 2px solid var(--c-primary-soft);
+}
+.table tbody tr:nth-child(even) { background: var(--c-row-accent); }
+.table tbody tr:hover { background: var(--c-primary-soft); }
