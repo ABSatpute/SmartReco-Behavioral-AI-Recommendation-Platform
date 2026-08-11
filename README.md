@@ -50,18 +50,26 @@ FastAPI app
         └── Observability: agent_runs trace + JSON logs (optional LangSmith)
 ```
 
-### Trigger policy (judged efficiency criterion)
+## How the agent works
 
-The agent runs only when **any** of these fire — never on a bare page view:
+### When does the agent run? (trigger policy — judged efficiency criterion)
 
-1. ≥ 3 meaningful events (`product_view`, `search`, `product_click`, `add_to_cart`) since the last run,
-2. cooldown elapsed (default 30 min) **and** ≥ 1 new meaningful event,
-3. the user clicks "Refresh recommendations",
-4. the daily digest scheduler / cron fires.
+The agent is deliberately lazy: a bare page view never costs an LLM call. The user
+always gets the **latest cached recommendation** (`valid_until`) when it's still fresh.
+A run is only triggered when **any** of these fire:
 
-The latest valid recommendation is always served from the DB cache (`valid_until`).
+1. **Signal threshold** — ≥ `min_events_threshold` (default 3) *meaningful* events since
+   the last run: `product_view`, `search`, `product_click`, or `add_to_cart`.
+2. **Cooldown + activity** — the cooldown has elapsed (default 30 min) **and** there's at
+   least 1 new meaningful event since the last run.
+3. **Manual refresh** — the user clicks "Refresh recommendations".
+4. **Scheduled / cron** — the daily digest scheduler or a cron endpoint fires
+   (see *When are notifications sent?* below).
 
-### Agent workflow (`app/agent/`)
+A background worker re-checks the same policy before running, so concurrent page views
+can't double-spend tokens (`_RUNNING_USERS` guard).
+
+### What does the agent do? (workflow, `app/agent/`)
 
 LangGraph `StateGraph` with 7 nodes (`graph.py`):
 
@@ -76,6 +84,33 @@ LangGraph `StateGraph` with 7 nodes (`graph.py`):
 Skips are **not** failures: a run that deliberately declines to recommend (insufficient
 signal) is marked `skipped`, excluded from failure counts, and surfaced separately in
 both the dashboard and observability.
+
+### When are notifications sent? (proactive delivery)
+
+Notifications are **push-only follow-ups** — the user doesn't need to be browsing.
+Messages send over **email and/or Telegram**, gated by the `notification_channels_list`
+setting. There are two delivery jobs (see `app/scheduler.py` + `app/router/cron.py`):
+
+**1. Daily digest — at most once per user per day**
+- Runs on a 30-minute in-process cadence (APScheduler) plus a best-effort catch-up at
+  boot — so any wake-up of the free-tier (spin-down) instance delivers promptly.
+  A per-user per-day guard (`_already_digested_today`) keeps it to **one digest/day**.
+  For exact-time delivery, a **Render Cron Job** hits `/cron/digest` (secret-protected).
+- Only users who have a fresh recommendation to share are emailed; a user with no
+  recommendable activity gets nothing and is counted as *skipped / no recommendation*.
+- Each digest runs the agent (`force=True`, source `daily_digest`) unless a valid
+  recommendation is already cached.
+
+**2. Session follow-ups — 1h / 6h / 12h after a browsing session ends**
+- A browsing session ends after `session_gap_minutes` of inactivity.
+- At each follow-up slot (`session_slots_hours`, default `1,6,12`), a sweep
+  (`run_session_digests` on a 15-min cadence, or `/cron/sessions`) sends an
+  abandoned-intent follow-up with the products from that session.
+- Only sessions with meaningful activity participate; the recommendation built for the
+  session is **reused** for later slots, so it's generated once, not per slot.
+- Follow-ups are idempotent per session-and-slot (`session_digests` table).
+
+You can trigger either manually for testing: `python -m app.cli run_digest_now`.
 
 ### Grounding guarantee
 
