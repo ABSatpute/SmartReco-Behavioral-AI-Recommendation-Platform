@@ -6,7 +6,17 @@ recommendations** powered by a **LangGraph reasoning agent** that retrieves from
 **Pinecone** vector store and generates **catalog-grounded** narratives.
 
 Built for the **SmartReco Build Challenge 2026**. All LLM and embedding calls go
-through the **Mesh API** gateway (OpenAI-compatible). Live: <https://smartreco-sogc.onrender.com>
+through the **Mesh API** gateway (OpenAI-compatible).
+
+---
+
+## Live demo
+
+**Live demo:** <https://smartreco-sogc.onrender.com>
+
+Register an account and browse / search / add to cart, then open **My
+Recommendations** to see the agent's personalized picks. Admins can explore the
+agent observability, live activity feed, and user management pages too.
 
 ---
 
@@ -25,30 +35,6 @@ through the **Mesh API** gateway (OpenAI-compatible). Live: <https://smartreco-s
 | **Admin user management** | Create / edit / delete users with role assignment |
 
 ---
-
-## Architecture
-
-```
-Browser (Jinja2 + JS tracker — batched, throttled, beacon-on-unload)
-   │  POST /api/events/batch
-   ▼
-FastAPI app
-   ├── Auth/session layer (bcrypt + DB session cookie)
-   ├── Catalog + admin users ──► PostgreSQL ──► Pinecone (dual-write, in sync)
-   ├── Event ingest (validates, batches, persists) ──► Live Activity SSE
-   ├── Cart / checkout, browse sessions
-   ├── Recommendation service (cache + trigger policy)
-   │        │
-   │        ▼
-   │   Agent engine (LangGraph)  ──► Mesh API (LLM + embeddings)
-   │        │                        ▼
-   │        └────────── Pinecone retrieval (RAG, grounded in real catalog)
-   │        ▼
-   ├── Recommendations stored in DB, served to UI
-   ├── APScheduler ──► daily digest agent run ──► email + Telegram
-   └── Render Cron (/cron/digest, /cron/sessions) for exact-time delivery
-        └── Observability: agent_runs trace + JSON logs (optional LangSmith)
-```
 
 ## How the agent works
 
@@ -116,6 +102,32 @@ You can trigger either manually for testing: `python -m app.cli run_digest_now`.
 
 Every recommended `product_id` must come from the evaluated candidate list. Anything
 else triggers a regeneration (max 2 retries), then a catalog-grounded fallback.
+
+---
+
+## Architecture
+
+```
+Browser (Jinja2 + JS tracker — batched, throttled, beacon-on-unload)
+   │  POST /api/events/batch
+   ▼
+FastAPI app
+   ├── Auth/session layer (bcrypt + DB session cookie)
+   ├── Catalog + admin users ──► PostgreSQL ──► Pinecone (dual-write, in sync)
+   ├── Event ingest (validates, batches, persists) ──► Live Activity SSE
+   ├── Cart / checkout, browse sessions
+   ├── Recommendation service (cache + trigger policy)
+   │        │
+   │        ▼
+   │   Agent engine (LangGraph)  ──► Mesh API (LLM + embeddings)
+   │        │                        ▼
+   │        └────────── Pinecone retrieval (RAG, grounded in real catalog)
+   │        ▼
+   ├── Recommendations stored in DB, served to UI
+   ├── APScheduler ──► daily digest agent run ──► email + Telegram
+   └── Render Cron (/cron/digest, /cron/sessions) for exact-time delivery
+        └── Observability: agent_runs trace + JSON logs (optional LangSmith)
+```
 
 ---
 
